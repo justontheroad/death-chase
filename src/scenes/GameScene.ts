@@ -410,16 +410,9 @@ export class GameScene extends Phaser.Scene {
                         this.gameOver();
                     }
                 }
-                    if (this.playerLevel > this.boss.level) {
-                        this.damageBoss(10);
-                    } else if (this.playerLevel < this.boss.level) {
-                        this.gameOver();
-                    }
-                }
             });
         });
     }
-
     private checkEnemiesVsPlayer() {
         if (!this.player) return;
         
