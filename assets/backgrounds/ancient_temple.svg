@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <!-- Ancient Temple Background (古寺) -->
+  <rect width="800" height="600" fill="#f5f5dc"/>
+  <!-- Sky -->
+  <rect width="800" height="300" fill="#87ceeb"/>
+  <!-- Ground -->
+  <rect y="300" width="800" height="300" fill="#d2b48c"/>
+  <!-- Temple building -->
+  <rect x="300" y="200" width="200" height="150" fill="#8b4513"/>
+  <!-- Temple roof -->
+  <polygon points="280,200 520,200 500,180 300,180" fill="#cd5c5c"/>
+  <!-- Temple pillars -->
+  <rect x="320" y="200" width="10" height="150" fill="#a0522d"/>
+  <rect x="360" y="200" width="10" height="150" fill="#a0522d"/>
+  <rect x="400" y="200" width="10" height="150" fill="#a0522d"/>
+  <rect x="440" y="200" width="10" height="150" fill="#a0522d"/>
+  <rect x="480" y="200" width="10" height="150" fill="#a0522d"/>
+  <!-- Temple doors -->
+  <rect x="380" y="280" width="40" height="70" fill="#654321"/>
+  <!-- Stone path -->
+  <rect x="350" y="350" width="100" height="20" fill="#696969"/>
+  <!-- Lanterns -->
+  <circle cx="340" cy="220" r="8" fill="#ff4500"/>
+  <circle cx="460" cy="220" r="8" fill="#ff4500"/>
+</svg>

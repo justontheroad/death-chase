@@ -1,0 +1,34 @@
+{
+  "name": "death-chase",
+  "version": "1.0.0",
+  "description": "夺命追击 (Death Chase) H5 game with rotating blade array mechanics",
+  "main": "dist/game.bundle.js",
+  "scripts": {
+    "build": "webpack --mode=development",
+    "build:prod": "webpack --mode=production",
+    "dev": "webpack serve --mode=development",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "phaser",
+    "html5",
+    "game",
+    "wuxia",
+    "rotating-blade"
+  ],
+  "author": "Qwen",
+  "license": "MIT",
+  "dependencies": {
+    "phaser": "^3.55.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "copy-webpack-plugin": "^14.0.0",
+    "html-webpack-plugin": "^5.6.6",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "webpack": "^5.105.4",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.3"
+  }
+}

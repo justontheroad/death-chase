@@ -1,0 +1,166 @@
+# 夺命追击 (Death Chase) - Game Design Document
+
+## 1. Overview
+
+**夺命追击 (Death Chase)** is an H5 browser-based action game featuring rotating blade array mechanics set in a wuxia (martial arts) world. Players control one of three legendary characters (乔峰/Qiao Feng, 鸠摩智/Jiumozhi, or 虚竹/Xuzhu) and must navigate through deadly rotating blade arrays while transforming between hunter and prey states.
+
+### Core Mechanics
+- **Rotating Blade Arrays**: Multiple concentric circles of rotating blades with varying speeds and directions
+- **Character Transformation**: Switch between hunter (aggressive) and prey (defensive) states
+- **Three Character System**: Each character has unique balanced parameters for attack range, speed, and abilities
+- **10关卡 Structure**: Progressive difficulty across 3 stages (初阶/中阶/高阶)
+
+## 2. Technical Specifications
+
+### Platform Requirements
+- **Target Platform**: Mobile browsers (H5)
+- **Performance Targets**: ≥55fps frame rate, <150MB memory usage
+- **Framework**: Phaser.js 3.55.2 with TypeScript
+- **Build System**: Webpack with TypeScript compilation
+
+### Architecture
+- **Scene Management**: BootScene → GameScene + UIScene (overlay)
+- **Entity System**: Component-based character and blade entities
+- **Performance Monitoring**: Real-time FPS and memory monitoring with auto-quality adjustment
+- **Asset Management**: Spritesheet-based character animations, PNG assets
+
+## 3. Game Structure
+
+### 10关卡 Difficulty Progression
+
+| Level | Name | Difficulty | Success Rate Target | Blade Arrays |
+|-------|------|------------|-------------------|--------------|
+| 1 | 新手教学 | 初阶 | 90% | 3 blades, radius 120, speed 1.0 |
+| 2 | 刀光剑影 | 初阶 | 80% | 4 blades, radius 150, speed 1.5 |
+| 3 | 双阵齐发 | 初阶 | 70% | 4+3 blades, radii 120+80, speeds 1.8+2.0 |
+| 4 | 刀阵迷踪 | 中阶 | 60% | 5+4 blades, radii 160+100, speeds 2.0+2.2 |
+| 5 | 生死一线 | 中阶 | 50% | 6+4+3 blades, radii 180+120+60, speeds 2.5+2.8+3.0 |
+| 6 | 刀山火海 | 中阶 | 45% | 6+5+4 blades, radii 200+140+80, speeds 3.0+3.2+3.5 |
+| 7 | 绝境求生 | 高阶 | 40% | 7+6+5+4 blades, radii 220+160+100+60, speeds 3.5+3.8+4.0+4.2 |
+| 8 | 天罗地网 | 高阶 | 35% | 8+7+6+5 blades, radii 240+180+120+80, speeds 4.0+4.2+4.5+4.8 |
+| 9 | 刀锋地狱 | 高阶 | 30% | 9+8+7+6+5 blades, radii 260+200+140+100+60, speeds 4.5+4.8+5.0+5.2+5.5 |
+| 10 | 夺命追击 | 高阶 | 20% | 10+9+8+7+6+5 blades, radii 280+220+160+120+80+50, speeds 5.0+5.2+5.5+5.8+6.0+6.2 |
+
+### Difficulty Stages
+- **初阶 (Basic)**: Levels 1-3, success rates 90% → 70%
+- **中阶 (Intermediate)**: Levels 4-6, success rates 60% → 45%
+- **高阶 (Advanced)**: Levels 7-10, success rates 40% → 20%
+
+## 4. Character System
+
+### Character Balance Table
+
+| Character | Attack Range | Speed | Abilities | Special Traits |
+|-----------|--------------|-------|-----------|----------------|
+| **乔峰 (Qiao Feng)** | 70 | 230 | Powerful Strike, Dragon Tendon Palm | Highest attack range, balanced speed |
+| **鸠摩智 (Jiumozhi)** | 55 | 280 | Flame Mastery, Divine Finger | Highest speed, special fire abilities |
+| **虚竹 (Xuzhu)** | 50 | 200 | Healing Touch, Buddhist Protection | Damage reduction, defensive focus |
+
+### Character States
+- **Prey State**: Default state, normal appearance, defensive capabilities
+- **Hunter State**: Transformed state, enhanced abilities, aggressive appearance (tinted red/orange/green)
+
+### Transformation System
+- Players can manually transform between states
+- Hunter state provides offensive bonuses
+- Prey state provides defensive/survival bonuses
+- Visual feedback through color tinting and effects
+
+## 5. UI/UX Design
+
+### Core UI Elements
+- **Rotation Control Zone**: Circular touch area in bottom-left corner for controlling blade rotation direction
+- **Attack Counter**: Display in top-right showing player's successful attacks
+- **Health Indicator**: Character health display
+- **Level Progress**: Current level and stage indicator
+
+### Input System
+- **Touch/Mouse Support**: Full support for both mobile touch and desktop mouse
+- **Rotation Control**: Drag within control zone to affect blade rotation
+- **Movement**: Click/tap to move character to target location
+- **Transformation**: Dedicated button or gesture to switch states
+
+## 6. Performance Optimization
+
+### Mobile Optimization Strategies
+- **Frame-rate Independent Movement**: Delta time-based updates
+- **Object Pooling**: Reuse blade and effect objects
+- **Spatial Partitioning**: Efficient collision detection for 100+ enemies
+- **Auto-Quality Adjustment**: Dynamic quality scaling based on current FPS
+- **Asset Compression**: Optimized PNG assets under 200KB
+
+### Performance Monitoring
+- **Real-time FPS Tracking**: Monitor actual frame rate
+- **Memory Usage Monitoring**: Track JavaScript heap usage
+- **Quality Levels**: 
+  - Level 3 (High): Full effects, additive blending
+  - Level 2 (Medium): Basic effects, normal blending  
+  - Level 1 (Low): Minimal effects, optimized rendering
+- **Performance Reports**: Generate reports every 10 seconds
+
+## 7. Asset Specifications
+
+### Naming Convention
+- **Characters**: `assets/characters/qiao_feng.png`, `assets/characters/jiumozhi.png`, `assets/characters/xuzhu.png`
+- **Weapons**: `assets/weapons/blade.png`
+- **UI Elements**: `assets/ui/control_zone.png`, `assets/ui/counter.png`
+
+### Asset Requirements
+- **Format**: PNG with transparency
+- **Size Limit**: ≤200KB per asset
+- **Resolution**: Optimized for 800x600 base resolution
+- **Spritesheets**: Character animations in spritesheet format (64x64 frames)
+
+## 8. Quality Assurance Standards
+
+### Code Quality
+- **TypeScript Coverage**: 100% type safety
+- **Phaser Test Suite**: Pass official Phaser test suite with ≥85% coverage
+- **Code Structure**: Follow established project architecture patterns
+- **Error Handling**: Comprehensive error handling and logging
+
+### Performance Standards
+- **Mobile Frame Rate**: Consistently ≥55fps on target devices
+- **Memory Usage**: <150MB even with 100+ enemies active
+- **Load Times**: Fast asset loading with progress indication
+- **Battery Efficiency**: Optimized rendering to minimize battery drain
+
+### Game Balance
+- **Success Rate Validation**: Actual player success rates match targets
+- **Character Balance**: All three characters are viable choices
+- **Difficulty Curve**: Smooth progression without sudden spikes
+- **Tutorial Effectiveness**: Level 1 effectively teaches core mechanics
+
+## 9. Development Agents
+
+Following the Agent.md specification, this project utilizes multiple specialized agents:
+
+- **sisyphus**: Project coordination and milestone tracking
+- **oracle**: Technical architecture and Phaser.js best practices
+- **hephaestus**: Core game logic implementation
+- **librarian**: Documentation and asset management
+- **explore**: Gameplay testing and balance validation
+- **prometheus**: Performance monitoring and optimization
+- **metis**: Difficulty curve and level design
+- **atlas**: Project visualization and documentation
+
+## 10. Future Enhancements
+
+### Planned Features
+- **Multiplayer Mode**: Cooperative or competitive gameplay
+- **Additional Characters**: More wuxia heroes with unique abilities
+- **Power-ups**: Temporary abilities and enhancements
+- **Achievement System**: Unlockable rewards and milestones
+- **Social Integration**: Share scores and achievements
+
+### Technical Improvements
+- **WebGL Optimization**: Advanced rendering techniques
+- **Audio Integration**: Spatial audio and sound effects
+- **Progressive Web App**: Installable PWA functionality
+- **Analytics Integration**: Player behavior analytics
+
+---
+
+**Document Version**: 1.0  
+**Last Updated**: 2026-03-09  
+**Compliance**: Follows Agent.md standards for Death Chase development

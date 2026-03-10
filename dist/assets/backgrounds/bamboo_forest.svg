@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <!-- Bamboo Forest Background (竹林) -->
+  <rect width="800" height="600" fill="#e8f5e9"/>
+  <!-- Sky gradient -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#87ceeb"/>
+      <stop offset="100%" stop-color="#e8f5e9"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="300" fill="url(#sky)"/>
+  <!-- Ground -->
+  <rect y="300" width="800" height="300" fill="#8fbc8f"/>
+  <!-- Bamboo stalks -->
+  <rect x="100" y="150" width="4" height="400" fill="#228b22"/>
+  <rect x="200" y="100" width="4" height="450" fill="#228b22"/>
+  <rect x="300" y="120" width="4" height="430" fill="#228b22"/>
+  <rect x="400" y="80" width="4" height="470" fill="#228b22"/>
+  <rect x="500" y="130" width="4" height="420" fill="#228b22"/>
+  <rect x="600" y="90" width="4" height="460" fill="#228b22"/>
+  <rect x="700" y="110" width="4" height="440" fill="#228b22"/>
+  <!-- Bamboo leaves -->
+  <ellipse cx="102" cy="140" rx="30" ry="15" fill="#32cd32" transform="rotate(-30 102 140)"/>
+  <ellipse cx="202" cy="90" rx="30" ry="15" fill="#32cd32" transform="rotate(30 202 90)"/>
+  <ellipse cx="302" cy="110" rx="30" ry="15" fill="#32cd32" transform="rotate(-45 302 110)"/>
+  <ellipse cx="402" cy="70" rx="30" ry="15" fill="#32cd32" transform="rotate(45 402 70)"/>
+  <ellipse cx="502" cy="120" rx="30" ry="15" fill="#32cd32" transform="rotate(-30 502 120)"/>
+  <ellipse cx="602" cy="80" rx="30" ry="15" fill="#32cd32" transform="rotate(30 602 80)"/>
+  <ellipse cx="702" cy="100" rx="30" ry="15" fill="#32cd32" transform="rotate(-45 702 100)"/>
+</svg>

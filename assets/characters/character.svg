@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Generic Character -->
+  <rect x="0" y="0" width="64" height="64" fill="#2c1a0f" opacity="0"/>
+  <!-- Body -->
+  <circle cx="32" cy="24" r="12" fill="#f8d9b5"/>
+  <!-- Head -->
+  <rect x="20" y="36" width="24" height="20" fill="#3d2a1a"/>
+  <!-- Robe -->
+  <rect x="24" y="16" width="16" height="4" fill="#4a90e2"/>
+  <!-- Warrior sash (blue) -->
+  <circle cx="32" cy="24" r="2" fill="#333"/>
+  <!-- Eyes -->
+</svg>

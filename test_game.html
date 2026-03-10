@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Test</title>
+</head>
+<body>
+    <h1>Death Chase - Test Page</h1>
+    <p>Open browser console (F12) to check for errors</p>
+    <iframe src="http://localhost:8082" width="800" height="600" style="border: 2px solid #000;"></iframe>
+    <script>
+        console.log('Game test page loaded');
+        window.addEventListener('error', function(e) {
+            console.error('Game error:', e.message);
+        });
+    </script>
+</body>
+</html>
