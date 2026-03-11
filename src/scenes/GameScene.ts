@@ -8,7 +8,11 @@ interface EnemyData {
     moveTargetX: number;
     moveTargetY: number;
     isMoving: boolean;
+    lastHitTime: number; // 上次被击中的时间
 }
+
+// 碰撞冷却时间（毫秒）
+const HIT_COOLDOWN = 500;
 
 interface BossData {
     character: Character;
@@ -17,6 +21,7 @@ interface BossData {
     maxHealth: number;
     currentHealth: number;
     isAlive: boolean;
+    lastHitTime: number; // 上次被击中的时间
 }
 
 export interface WeaponPowerUp {
@@ -33,6 +38,7 @@ export class GameScene extends Phaser.Scene {
     public playerLevel: number = 1;
     public playerExp: number = 0;
     public expToNextLevel: number = 100;
+    private playerLastHitTime: number = 0; // 玩家上次被击中的时间
     
     private enemies: EnemyData[] = [];
     private boss: BossData | null = null;
@@ -294,7 +300,8 @@ export class GameScene extends Phaser.Scene {
             level: enemyLevel,
             moveTargetX,
             moveTargetY,
-            isMoving: true
+            isMoving: true,
+            lastHitTime: 0
         };
         
         this.enemies.push(enemyData);
@@ -351,7 +358,8 @@ export class GameScene extends Phaser.Scene {
             level: bossLevel,
             maxHealth: bossLevel * 100,
             currentHealth: bossLevel * 100,
-            isAlive: true
+            isAlive: true,
+            lastHitTime: 0
         };
         
         this.bossHealthText.setText(`BOSS HP: ${this.boss.currentHealth}/${this.boss.maxHealth}`);
@@ -426,10 +434,15 @@ export class GameScene extends Phaser.Scene {
                     
                     // 检查玩家武器是否击中敌人角色
                     const distanceToEnemy = Phaser.Math.Distance.Between(bladeX, bladeY, enemyData.character.x, enemyData.character.y);
-                    if (distanceToEnemy < 40) {
+                    const currentTime = this.time.now;
+                    
+                    if (distanceToEnemy < 40 && currentTime - enemyData.lastHitTime > HIT_COOLDOWN) {
                         // 扣除敌人的生命值
                         const playerWeaponDamage = playerBladeArray.getWeaponStats().damage;
                         const enemyIsDead = enemyData.character.takeDamage(playerWeaponDamage);
+                        
+                        // 更新敌人被击中的时间
+                        enemyData.lastHitTime = currentTime;
                         
                         if (enemyIsDead) {
                             this.defeatEnemy(enemyIndex);
@@ -506,10 +519,14 @@ export class GameScene extends Phaser.Scene {
                 
                 // 检查玩家武器是否击中BOSS角色
                 const distanceToBoss = Phaser.Math.Distance.Between(bladeX, bladeY, this.boss!.character.x, this.boss!.character.y);
-                if (distanceToBoss < 40) {
+                const currentTime = this.time.now;
+                
+                if (distanceToBoss < 40 && currentTime - this.boss!.lastHitTime > HIT_COOLDOWN) {
                     // 扣除BOSS的生命值
                     const playerWeaponDamage = playerBladeArray.getWeaponStats().damage;
                     this.damageBoss(playerWeaponDamage);
+                    // 更新BOSS被击中的时间
+                    this.boss!.lastHitTime = currentTime;
                 }
                 
                 this.boss!.blades.forEach(bossBladeArray => {
@@ -580,10 +597,15 @@ export class GameScene extends Phaser.Scene {
                     
                     // 检查敌人武器是否击中玩家角色
                     const distanceToPlayer = Phaser.Math.Distance.Between(enemyBladeX, enemyBladeY, this.player!.x, this.player!.y);
-                    if (distanceToPlayer < 40) {
+                    const currentTime = this.time.now;
+                    
+                    if (distanceToPlayer < 40 && currentTime - this.playerLastHitTime > HIT_COOLDOWN) {
                         // 扣除玩家的生命值
                         const enemyWeaponDamage = enemyBladeArray.getWeaponStats().damage;
                         const playerIsDead = this.player!.takeDamage(enemyWeaponDamage);
+                        
+                        // 更新玩家被击中的时间
+                        this.playerLastHitTime = currentTime;
                         
                         if (playerIsDead) {
                             this.gameOver();
@@ -604,6 +626,9 @@ export class GameScene extends Phaser.Scene {
                             const distance = Phaser.Math.Distance.Between(enemyBladeX, enemyBladeY, playerBladeX, playerBladeY);
                             
                             if (distance < 30) {
+                                // 武器碰撞响应：稍微后退
+                                this.handleWeaponCollision(enemyBladeArray, playerBladeArray, enemyBlade, playerBlade);
+                                
                                 // 扣除双方武器的生命值
                                 const enemyWeaponDamage = enemyBladeArray.getWeaponStats().damage;
                                 const playerWeaponDamage = playerBladeArray.getWeaponStats().damage;
@@ -663,10 +688,15 @@ export class GameScene extends Phaser.Scene {
                     
                     // 检查BOSS武器是否击中玩家角色
                     const distanceToPlayer = Phaser.Math.Distance.Between(bossBladeX, bossBladeY, this.player!.x, this.player!.y);
-                    if (distanceToPlayer < 40) {
+                    const currentTime = this.time.now;
+                    
+                    if (distanceToPlayer < 40 && currentTime - this.playerLastHitTime > HIT_COOLDOWN) {
                         // 扣除玩家的生命值
                         const bossWeaponDamage = bossBladeArray.getWeaponStats().damage;
                         const playerIsDead = this.player!.takeDamage(bossWeaponDamage);
+                        
+                        // 更新玩家被击中的时间
+                        this.playerLastHitTime = currentTime;
                         
                         if (playerIsDead) {
                             this.gameOver();
@@ -687,6 +717,9 @@ export class GameScene extends Phaser.Scene {
                             const distance = Phaser.Math.Distance.Between(bossBladeX, bossBladeY, playerBladeX, playerBladeY);
                             
                             if (distance < 30) {
+                                // 武器碰撞响应：稍微后退
+                                this.handleWeaponCollision(bossBladeArray, playerBladeArray, bossBlade, playerBlade);
+                                
                                 // 扣除双方武器的生命值
                                 const bossWeaponDamage = bossBladeArray.getWeaponStats().damage;
                                 const playerWeaponDamage = playerBladeArray.getWeaponStats().damage;
