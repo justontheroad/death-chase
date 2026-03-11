@@ -74,4 +74,17 @@ export class Character extends Phaser.GameObjects.Sprite {
         this.health = Math.max(0, this.health - amount);
         return this.health <= 0;
     }
+
+    public levelUp() {
+        this.maxHealth += 20; // 每次升级增加20点最大生命值
+        this.health = this.maxHealth; // 升级时生命值回满
+    }
+
+    public getMaxHealth(): number {
+        return this.maxHealth;
+    }
+
+    public setHealth(health: number) {
+        this.health = Math.min(health, this.maxHealth);
+    }
 }

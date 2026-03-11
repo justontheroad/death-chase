@@ -14,6 +14,7 @@ export interface WeaponStats {
     damage: number;
     range: number;
     speed: number;
+    health: number;
 }
 
 export interface BladeConfig {
@@ -25,8 +26,13 @@ export interface BladeConfig {
     weaponLevel?: number;
 }
 
+interface BladeWithHealth {
+    sprite: Phaser.GameObjects.Sprite;
+    health: number;
+}
+
 export class BladeArray extends Phaser.GameObjects.Container {
-    private blades: Phaser.GameObjects.Sprite[] = [];
+    private blades: BladeWithHealth[] = [];
     private rotationSpeed: number;
     private radius: number;
     private bladeCount: number;
@@ -58,11 +64,11 @@ export class BladeArray extends Phaser.GameObjects.Container {
 
     private calculateWeaponStats(): WeaponStats {
         const baseStats: Record<WeaponType, WeaponStats> = {
-            [WeaponType.SWORD]: { damage: 10, range: 1.0, speed: 1.0 },
-            [WeaponType.AXE]: { damage: 15, range: 0.8, speed: 0.7 },
-            [WeaponType.SPEAR]: { damage: 8, range: 1.3, speed: 0.9 },
-            [WeaponType.HAMMER]: { damage: 20, range: 0.6, speed: 0.5 },
-            [WeaponType.DAGGER]: { damage: 5, range: 0.9, speed: 1.3 }
+            [WeaponType.SWORD]: { damage: 10, range: 1.0, speed: 1.0, health: 100 },
+            [WeaponType.AXE]: { damage: 15, range: 0.8, speed: 0.7, health: 120 },
+            [WeaponType.SPEAR]: { damage: 8, range: 1.3, speed: 0.9, health: 80 },
+            [WeaponType.HAMMER]: { damage: 20, range: 0.6, speed: 0.5, health: 150 },
+            [WeaponType.DAGGER]: { damage: 5, range: 0.9, speed: 1.3, health: 60 }
         };
 
         const base = baseStats[this.weaponType];
@@ -71,7 +77,8 @@ export class BladeArray extends Phaser.GameObjects.Container {
         return {
             damage: Math.floor(base.damage * levelMultiplier),
             range: base.range,
-            speed: base.speed
+            speed: base.speed,
+            health: Math.floor(base.health * levelMultiplier)
         };
     }
 
@@ -95,11 +102,11 @@ export class BladeArray extends Phaser.GameObjects.Container {
             
             // Set tint based on weapon level
             const tint = this.getWeaponTint();
-            blade.setTint(tint);
+            blade.sprite.setTint(tint);
             
             // Set scale based on weapon type and level
             const scale = this.getWeaponScale();
-            blade.setScale(scale);
+            blade.sprite.setScale(scale);
         });
     }
 
@@ -141,7 +148,10 @@ export class BladeArray extends Phaser.GameObjects.Container {
             const scale = this.getWeaponScale();
             blade.setScale(scale);
             
-            this.blades.push(blade);
+            this.blades.push({
+                sprite: blade,
+                health: this.weaponStats.health
+            });
             this.add(blade);
         }
     }
@@ -154,13 +164,47 @@ export class BladeArray extends Phaser.GameObjects.Container {
         // Update individual blade rotations to point in the direction of movement
         this.blades.forEach((blade, index) => {
             const angle = (index / this.bladeCount) * Math.PI * 2 + this.rotation;
-            blade.rotation = angle + Math.PI / 2; // 调整武器朝向，使其尖端指向旋转方向
+            blade.sprite.rotation = angle + Math.PI / 2; // 调整武器朝向，使其尖端指向旋转方向
         });
     }
 
     // Public methods for game logic interaction
     public getBlades(): Phaser.GameObjects.Sprite[] {
-        return this.blades;
+        return this.blades.map(blade => blade.sprite);
+    }
+
+    public getBladeHealth(index: number): number {
+        if (index >= 0 && index < this.blades.length) {
+            return this.blades[index].health;
+        }
+        return 0;
+    }
+
+    public setBladeHealth(index: number, health: number): boolean {
+        if (index >= 0 && index < this.blades.length) {
+            this.blades[index].health = health;
+            return true;
+        }
+        return false;
+    }
+
+    public removeBlade(index: number): boolean {
+        if (index >= 0 && index < this.blades.length) {
+            const blade = this.blades[index];
+            blade.sprite.destroy();
+            this.blades.splice(index, 1);
+            this.bladeCount--;
+            return true;
+        }
+        return false;
+    }
+
+    public isEmpty(): boolean {
+        return this.blades.length === 0;
+    }
+
+    public getBladeCount(): number {
+        return this.bladeCount;
     }
 
     public setRotationSpeed(speed: number) {
@@ -173,10 +217,6 @@ export class BladeArray extends Phaser.GameObjects.Container {
 
     public getRadius(): number {
         return this.radius * this.weaponStats.range;
-    }
-
-    public getBladeCount(): number {
-        return this.bladeCount;
     }
 
     public getWeaponType(): WeaponType {
