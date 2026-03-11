@@ -1,4 +1,4 @@
-import { BladeArray } from '../entities/Blade';
+import { BladeArray, WeaponType } from '../entities/Blade';
 import { Character } from '../entities/Character';
 
 interface EnemyData {
@@ -19,6 +19,13 @@ interface BossData {
     isAlive: boolean;
 }
 
+export interface WeaponPowerUp {
+    sprite: Phaser.GameObjects.Sprite;
+    isActive: boolean;
+    weaponType: WeaponType;
+    weaponLevel: number;
+}
+
 export class GameScene extends Phaser.Scene {
     public player: Character | null = null;
     public playerBlades: BladeArray[] = [];
@@ -29,6 +36,8 @@ export class GameScene extends Phaser.Scene {
     private enemies: EnemyData[] = [];
     private boss: BossData | null = null;
     private totalEnemySlots: number = 15;
+    private weaponPowerUps: WeaponPowerUp[] = [];
+    private maxPowerUps: number = 5;
     
     private worldWidth: number = 8000;
     private worldHeight: number = 6000;
@@ -65,6 +74,7 @@ export class GameScene extends Phaser.Scene {
         this.createPlayer();
         this.setupCamera();
         this.createUI();
+        this.createWeaponPowerUps();
 
         this.time.delayedCall(1000, () => {
             this.initializeEnemies();
@@ -94,6 +104,7 @@ export class GameScene extends Phaser.Scene {
 
         this.updateEnemies(delta);
         this.updateBoss(delta);
+        this.updateWeaponPowerUps(delta);
     }
 
     private createPlayer() {
@@ -114,6 +125,10 @@ export class GameScene extends Phaser.Scene {
         
         if (!this.player) return;
         
+        // 为玩家选择武器类型（可以根据玩家等级或其他因素决定）
+        const weaponType = this.getRandomWeaponType();
+        const weaponLevel = Math.min(Math.floor(this.playerLevel / 2) + 1, 5);
+        
         const bladeArray = new BladeArray(
             this,
             this.player.x,
@@ -122,11 +137,18 @@ export class GameScene extends Phaser.Scene {
                 bladeCount: this.playerLevel + 2,
                 radius: 120,
                 rotationSpeed: 3.0,
-                clockwise: true
+                clockwise: true,
+                weaponType: weaponType,
+                weaponLevel: weaponLevel
             }
         );
         
         this.playerBlades.push(bladeArray);
+    }
+
+    private getRandomWeaponType(): WeaponType {
+        const types = [WeaponType.SWORD, WeaponType.AXE, WeaponType.SPEAR, WeaponType.HAMMER, WeaponType.DAGGER];
+        return types[Math.floor(Math.random() * types.length)];
     }
 
     private setupCamera() {
@@ -231,11 +253,15 @@ export class GameScene extends Phaser.Scene {
         });
         
         const blades: BladeArray[] = [];
+        const weaponType = this.getRandomWeaponType();
+        const weaponLevel = Math.min(enemyLevel, 5);
         const bladeArray = new BladeArray(this, x, y, {
             bladeCount: enemyLevel + 1,
             radius: 80,
             rotationSpeed: 2.0 + Math.random() * 2.0,
-            clockwise: Math.random() > 0.5
+            clockwise: Math.random() > 0.5,
+            weaponType: weaponType,
+            weaponLevel: weaponLevel
         });
         blades.push(bladeArray);
         
@@ -287,11 +313,15 @@ export class GameScene extends Phaser.Scene {
         });
         
         const blades: BladeArray[] = [];
+        const weaponType = this.getRandomWeaponType();
+        const weaponLevel = Math.min(bossLevel, 5);
         const bladeArray = new BladeArray(this, x, y, {
             bladeCount: bossLevel + 3,
             radius: 150,
             rotationSpeed: 4.0,
-            clockwise: true
+            clockwise: true,
+            weaponType: weaponType,
+            weaponLevel: weaponLevel
         });
         blades.push(bladeArray);
         
@@ -478,6 +508,7 @@ export class GameScene extends Phaser.Scene {
         
         this.playerExp += enemyData.level * 20;
         this.checkLevelUp();
+        this.expText.setText(`EXP: ${this.playerExp}/${this.expToNextLevel}`);
         
         this.enemies.splice(index, 1);
         
@@ -574,6 +605,10 @@ export class GameScene extends Phaser.Scene {
                     if (this.player) this.player.clearTint();
                 });
             }
+            
+            // 更新UI显示
+            this.levelText.setText(`Level: ${this.playerLevel}`);
+            this.expText.setText(`EXP: ${this.playerExp}/${this.expToNextLevel}`);
         }
     }
 
@@ -616,5 +651,154 @@ export class GameScene extends Phaser.Scene {
         this.playerTargetX = worldPoint.x;
         this.playerTargetY = worldPoint.y;
         this.isMoving = true;
+    }
+
+    private createWeaponPowerUps() {
+        for (let i = 0; i < this.maxPowerUps; i++) {
+            this.spawnWeaponPowerUp();
+        }
+    }
+
+    private spawnWeaponPowerUp() {
+        if (!this.player) return;
+        
+        let x, y;
+        let attempts = 0;
+        do {
+            x = Phaser.Math.Between(200, this.worldWidth - 200);
+            y = Phaser.Math.Between(200, this.worldHeight - 200);
+            attempts++;
+        } while (
+            Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 500 && 
+            attempts < 30
+        );
+
+        // 生成随机武器类型和等级
+        const weaponType = this.getRandomWeaponType();
+        const weaponLevel = this.getRandomWeaponLevel();
+
+        const powerUp = this.add.sprite(x, y, 'blade');
+        
+        // 根据武器等级设置颜色
+        const levelTints = [
+            0xffffff, // Level 1 - White
+            0xffd700, // Level 2 - Gold
+            0x00ff00, // Level 3 - Green
+            0x0000ff, // Level 4 - Blue
+            0xff00ff  // Level 5 - Purple
+        ];
+        powerUp.setTint(levelTints[Math.min(weaponLevel - 1, levelTints.length - 1)]);
+        
+        // 根据武器类型设置缩放
+        const typeScales = {
+            [WeaponType.SWORD]: 1.0,
+            [WeaponType.AXE]: 1.2,
+            [WeaponType.SPEAR]: 1.3,
+            [WeaponType.HAMMER]: 1.4,
+            [WeaponType.DAGGER]: 0.8
+        };
+        powerUp.setScale(typeScales[weaponType] * (1 + (weaponLevel - 1) * 0.1));
+        
+        powerUp.setDepth(5);
+
+        // 添加浮动动画
+        this.tweens.add({
+            targets: powerUp,
+            y: y - 10,
+            duration: 1000,
+            ease: 'Sine.inOut',
+            yoyo: true,
+            repeat: -1
+        });
+
+        this.weaponPowerUps.push({
+            sprite: powerUp,
+            isActive: true,
+            weaponType: weaponType,
+            weaponLevel: weaponLevel
+        });
+    }
+
+    private getRandomWeaponLevel(): number {
+        // 概率分布：等级1 (50%), 等级2 (30%), 等级3 (15%), 等级4 (4%), 等级5 (1%)
+        const rand = Math.random();
+        if (rand < 0.5) return 1;
+        if (rand < 0.8) return 2;
+        if (rand < 0.95) return 3;
+        if (rand < 0.99) return 4;
+        return 5;
+    }
+
+    private updateWeaponPowerUps(delta: number) {
+        if (!this.player) return;
+        
+        this.weaponPowerUps.forEach((powerUp, index) => {
+            if (!powerUp.isActive) return;
+            
+            const distance = Phaser.Math.Distance.Between(
+                powerUp.sprite.x, powerUp.sprite.y,
+                this.player!.x, this.player!.y
+            );
+            
+            if (distance < 60) {
+                this.collectWeaponPowerUp(index);
+            }
+        });
+    }
+
+    private collectWeaponPowerUp(index: number) {
+        const powerUp = this.weaponPowerUps[index];
+        if (!powerUp.isActive) return;
+        
+        powerUp.isActive = false;
+        powerUp.sprite.destroy();
+        
+        this.weaponPowerUps.splice(index, 1);
+        
+        // 立即升级武器
+        this.playerLevel++;
+        
+        // 创建新的武器数组，使用拾取的武器类型和等级
+        this.playerBlades.forEach(bladeArray => bladeArray.destroy());
+        this.playerBlades = [];
+        
+        if (this.player) {
+            const bladeArray = new BladeArray(
+                this,
+                this.player.x,
+                this.player.y,
+                {
+                    bladeCount: this.playerLevel + 2,
+                    radius: 120,
+                    rotationSpeed: 3.0,
+                    clockwise: true,
+                    weaponType: powerUp.weaponType,
+                    weaponLevel: powerUp.weaponLevel
+                }
+            );
+            
+            this.playerBlades.push(bladeArray);
+            
+            // 设置玩家颜色为武器等级对应的颜色
+            const levelTints = [
+                0xffffff, // Level 1 - White
+                0xffd700, // Level 2 - Gold
+                0x00ff00, // Level 3 - Green
+                0x0000ff, // Level 4 - Blue
+                0xff00ff  // Level 5 - Purple
+            ];
+            const tint = levelTints[Math.min(powerUp.weaponLevel - 1, levelTints.length - 1)];
+            this.player.setTint(tint);
+            this.time.delayedCall(300, () => {
+                if (this.player) this.player.clearTint();
+            });
+        }
+        
+        // 延迟生成新的武器道具
+        this.time.delayedCall(5000, () => {
+            if (!this.isGameOver && this.weaponPowerUps.length < this.maxPowerUps) {
+                this.spawnWeaponPowerUp();
+            }
+        });
     }
 }
