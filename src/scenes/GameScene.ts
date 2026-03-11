@@ -424,6 +424,18 @@ export class GameScene extends Phaser.Scene {
                 this.enemies.forEach((enemyData, enemyIndex) => {
                     if (!enemyData.character.active) return;
                     
+                    // 检查玩家武器是否击中敌人角色
+                    const distanceToEnemy = Phaser.Math.Distance.Between(bladeX, bladeY, enemyData.character.x, enemyData.character.y);
+                    if (distanceToEnemy < 40) {
+                        // 扣除敌人的生命值
+                        const playerWeaponDamage = playerBladeArray.getWeaponStats().damage;
+                        const enemyIsDead = enemyData.character.takeDamage(playerWeaponDamage);
+                        
+                        if (enemyIsDead) {
+                            this.defeatEnemy(enemyIndex);
+                        }
+                    }
+                    
                     enemyData.blades.forEach(enemyBladeArray => {
                         const enemyBlades = enemyBladeArray.getBlades();
                         
@@ -435,6 +447,9 @@ export class GameScene extends Phaser.Scene {
                             const distance = Phaser.Math.Distance.Between(bladeX, bladeY, enemyBladeX, enemyBladeY);
                             
                             if (distance < 30) {
+                                // 武器碰撞响应：稍微后退
+                                this.handleWeaponCollision(playerBladeArray, enemyBladeArray, playerBlade, enemyBlade);
+                                
                                 // 扣除双方武器的生命值
                                 const playerWeaponDamage = playerBladeArray.getWeaponStats().damage;
                                 const enemyWeaponDamage = enemyBladeArray.getWeaponStats().damage;
@@ -488,6 +503,14 @@ export class GameScene extends Phaser.Scene {
                 const bladeMatrix = playerBlade.getWorldTransformMatrix();
                 const bladeX = bladeMatrix.tx;
                 const bladeY = bladeMatrix.ty;
+                
+                // 检查玩家武器是否击中BOSS角色
+                const distanceToBoss = Phaser.Math.Distance.Between(bladeX, bladeY, this.boss!.character.x, this.boss!.character.y);
+                if (distanceToBoss < 40) {
+                    // 扣除BOSS的生命值
+                    const playerWeaponDamage = playerBladeArray.getWeaponStats().damage;
+                    this.damageBoss(playerWeaponDamage);
+                }
                 
                 this.boss!.blades.forEach(bossBladeArray => {
                     const bossBlades = bossBladeArray.getBlades();
@@ -554,6 +577,21 @@ export class GameScene extends Phaser.Scene {
                     const enemyBladeMatrix = enemyBlade.getWorldTransformMatrix();
                     const enemyBladeX = enemyBladeMatrix.tx;
                     const enemyBladeY = enemyBladeMatrix.ty;
+                    
+                    // 检查敌人武器是否击中玩家角色
+                    const distanceToPlayer = Phaser.Math.Distance.Between(enemyBladeX, enemyBladeY, this.player!.x, this.player!.y);
+                    if (distanceToPlayer < 40) {
+                        // 扣除玩家的生命值
+                        const enemyWeaponDamage = enemyBladeArray.getWeaponStats().damage;
+                        const playerIsDead = this.player!.takeDamage(enemyWeaponDamage);
+                        
+                        if (playerIsDead) {
+                            this.gameOver();
+                        } else {
+                            // 更新玩家生命值显示
+                            this.healthText.setText(`HP: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`);
+                        }
+                    }
                     
                     this.playerBlades.forEach(playerBladeArray => {
                         const playerBlades = playerBladeArray.getBlades();
@@ -622,6 +660,21 @@ export class GameScene extends Phaser.Scene {
                     const bossBladeMatrix = bossBlade.getWorldTransformMatrix();
                     const bossBladeX = bossBladeMatrix.tx;
                     const bossBladeY = bossBladeMatrix.ty;
+                    
+                    // 检查BOSS武器是否击中玩家角色
+                    const distanceToPlayer = Phaser.Math.Distance.Between(bossBladeX, bossBladeY, this.player!.x, this.player!.y);
+                    if (distanceToPlayer < 40) {
+                        // 扣除玩家的生命值
+                        const bossWeaponDamage = bossBladeArray.getWeaponStats().damage;
+                        const playerIsDead = this.player!.takeDamage(bossWeaponDamage);
+                        
+                        if (playerIsDead) {
+                            this.gameOver();
+                        } else {
+                            // 更新玩家生命值显示
+                            this.healthText.setText(`HP: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`);
+                        }
+                    }
                     
                     this.playerBlades.forEach(playerBladeArray => {
                         const playerBlades = playerBladeArray.getBlades();
@@ -809,9 +862,9 @@ export class GameScene extends Phaser.Scene {
         
         this.isMoving = false;
         
-        this.time.delayedCall(3000, () => {
-            this.scene.restart();
-        });
+        // 直接重启场景，而不是使用延迟调用
+        // 这样可以避免场景销毁后回调函数访问已销毁实例的问题
+        this.scene.restart();
     }
 
     private updatePlayerMovement(delta: number) {
@@ -826,9 +879,109 @@ export class GameScene extends Phaser.Scene {
             return;
         }
         
+        // 检查是否与敌人或武器碰撞
+        if (this.checkCollisionWithEnemies(this.player.x, this.player.y, dx, dy)) {
+            this.isMoving = false;
+            return;
+        }
+        
         const speed = this.player.getSpeed() * (delta / 1000);
         this.player.x += (dx / distance) * Math.min(speed, distance);
         this.player.y += (dy / distance) * Math.min(speed, distance);
+    }
+
+    private checkCollisionWithEnemies(x: number, y: number, dx: number, dy: number): boolean {
+        const playerRadius = 30; // 玩家碰撞半径
+        
+        // 检查与敌人的碰撞
+        for (const enemyData of this.enemies) {
+            if (!enemyData.character.active) continue;
+            
+            const enemyX = enemyData.character.x;
+            const enemyY = enemyData.character.y;
+            const distance = Phaser.Math.Distance.Between(x, y, enemyX, enemyY);
+            
+            if (distance < playerRadius + 30) { // 敌人碰撞半径
+                return true;
+            }
+        }
+        
+        // 检查与敌人武器的碰撞
+        for (const enemyData of this.enemies) {
+            if (!enemyData.character.active) continue;
+            
+            for (const bladeArray of enemyData.blades) {
+                const blades = bladeArray.getBlades();
+                for (const blade of blades) {
+                    const bladeMatrix = blade.getWorldTransformMatrix();
+                    const bladeX = bladeMatrix.tx;
+                    const bladeY = bladeMatrix.ty;
+                    
+                    const distance = Phaser.Math.Distance.Between(x, y, bladeX, bladeY);
+                    if (distance < playerRadius + 15) { // 武器碰撞半径
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        // 检查与BOSS的碰撞
+        if (this.boss && this.boss.isAlive) {
+            const bossX = this.boss.character.x;
+            const bossY = this.boss.character.y;
+            const distance = Phaser.Math.Distance.Between(x, y, bossX, bossY);
+            
+            if (distance < playerRadius + 40) { // BOSS碰撞半径
+                return true;
+            }
+            
+            // 检查与BOSS武器的碰撞
+            for (const bladeArray of this.boss.blades) {
+                const blades = bladeArray.getBlades();
+                for (const blade of blades) {
+                    const bladeMatrix = blade.getWorldTransformMatrix();
+                    const bladeX = bladeMatrix.tx;
+                    const bladeY = bladeMatrix.ty;
+                    
+                    const distance = Phaser.Math.Distance.Between(x, y, bladeX, bladeY);
+                    if (distance < playerRadius + 15) { // 武器碰撞半径
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    private handleWeaponCollision(playerBladeArray: BladeArray, enemyBladeArray: BladeArray, playerBlade: Phaser.GameObjects.Sprite, enemyBlade: Phaser.GameObjects.Sprite) {
+        // 计算碰撞方向
+        const playerBladeMatrix = playerBlade.getWorldTransformMatrix();
+        const playerBladeX = playerBladeMatrix.tx;
+        const playerBladeY = playerBladeMatrix.ty;
+        
+        const enemyBladeMatrix = enemyBlade.getWorldTransformMatrix();
+        const enemyBladeX = enemyBladeMatrix.tx;
+        const enemyBladeY = enemyBladeMatrix.ty;
+        
+        // 计算碰撞方向向量
+        const dx = playerBladeX - enemyBladeX;
+        const dy = playerBladeY - enemyBladeY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0) {
+            const directionX = dx / distance;
+            const directionY = dy / distance;
+            
+            // 玩家稍微后退
+            if (this.player) {
+                this.player.x += directionX * 10;
+                this.player.y += directionY * 10;
+                
+                // 同时停止玩家的移动
+                this.isMoving = false;
+            }
+        }
     }
 
     private handlePointerDown(pointer: Phaser.Input.Pointer): void {
