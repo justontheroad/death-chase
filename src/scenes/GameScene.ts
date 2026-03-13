@@ -32,6 +32,12 @@ export interface WeaponPowerUp {
     bladeCount: number;
 }
 
+export interface HealthPotion {
+    sprite: Phaser.GameObjects.Sprite;
+    isActive: boolean;
+    healAmount: number;
+}
+
 export class GameScene extends Phaser.Scene {
     public player: Character | null = null;
     public playerBlades: BladeArray[] = [];
@@ -45,6 +51,8 @@ export class GameScene extends Phaser.Scene {
     private totalEnemySlots: number = 15;
     private weaponPowerUps: WeaponPowerUp[] = [];
     private maxPowerUps: number = 5;
+    private healthPotions: HealthPotion[] = [];
+    private maxHealthPotions: number = 3;
     
     private worldWidth: number = 8000;
     private worldHeight: number = 6000;
@@ -55,6 +63,7 @@ export class GameScene extends Phaser.Scene {
     private expText!: Phaser.GameObjects.Text;
     private enemyCountText!: Phaser.GameObjects.Text;
     private bossHealthText!: Phaser.GameObjects.Text;
+    private weaponInfoText!: Phaser.GameObjects.Text;
     private victoryText!: Phaser.GameObjects.Text;
     
     // Movement
@@ -82,6 +91,7 @@ export class GameScene extends Phaser.Scene {
         this.setupCamera();
         this.createUI();
         this.createWeaponPowerUps();
+        this.createHealthPotions();
 
         this.time.delayedCall(1000, () => {
             this.initializeEnemies();
@@ -112,6 +122,9 @@ export class GameScene extends Phaser.Scene {
         this.updateEnemies(delta);
         this.updateBoss(delta);
         this.updateWeaponPowerUps(delta);
+        this.updateHealthPotions(delta);
+        this.regeneratePlayerHealth(delta);
+        this.updateWeaponInfo();
     }
 
     private createPlayer() {
@@ -227,6 +240,14 @@ export class GameScene extends Phaser.Scene {
         this.victoryText.setOrigin(0.5);
         this.victoryText.setScrollFactor(0);
         this.victoryText.setVisible(false);
+
+        this.weaponInfoText = this.add.text(20, 150, '', {
+            fontSize: '20px',
+            color: '#00ffff',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        this.weaponInfoText.setScrollFactor(0);
     }
 
     private initializeEnemies() {
@@ -1230,5 +1251,139 @@ export class GameScene extends Phaser.Scene {
                 this.spawnWeaponPowerUp();
             }
         });
+    }
+
+    private createHealthPotions() {
+        for (let i = 0; i < this.maxHealthPotions; i++) {
+            this.spawnHealthPotion();
+        }
+    }
+
+    private spawnHealthPotion() {
+        if (!this.player) return;
+        
+        let x, y;
+        let attempts = 0;
+        do {
+            x = Phaser.Math.Between(200, this.worldWidth - 200);
+            y = Phaser.Math.Between(200, this.worldHeight - 200);
+            attempts++;
+        } while (
+            Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 500 && 
+            attempts < 30
+        );
+
+        const healAmount = Phaser.Math.Between(20, 50);
+
+        const potion = this.add.sprite(x, y, 'blade');
+        potion.setTint(0xff0000);
+        potion.setScale(0.5);
+        potion.setDepth(5);
+
+        this.tweens.add({
+            targets: potion,
+            y: y - 10,
+            duration: 1000,
+            ease: 'Sine.inOut',
+            yoyo: true,
+            repeat: -1
+        });
+
+        this.healthPotions.push({
+            sprite: potion,
+            isActive: true,
+            healAmount: healAmount
+        });
+    }
+
+    private updateHealthPotions(delta: number) {
+        if (!this.player) return;
+        
+        this.healthPotions.forEach((potion, index) => {
+            if (!potion.isActive) return;
+            
+            const playerDistance = Phaser.Math.Distance.Between(
+                potion.sprite.x, potion.sprite.y,
+                this.player!.x, this.player!.y
+            );
+            
+            if (playerDistance < 60) {
+                this.collectHealthPotion(index);
+            }
+        });
+    }
+
+    private collectHealthPotion(index: number) {
+        const potion = this.healthPotions[index];
+        if (!potion.isActive) return;
+        
+        potion.isActive = false;
+        potion.sprite.destroy();
+        
+        this.healthPotions.splice(index, 1);
+        
+        if (this.player) {
+            const maxHealth = this.player.getMaxHealth();
+            const currentHealth = this.player.getHealth();
+            const newHealth = Math.min(currentHealth + potion.healAmount, maxHealth);
+            this.player.setHealth(newHealth);
+            
+            this.healthText.setText(`HP: ${this.player.getHealth()}/${maxHealth}`);
+            
+            this.player.setTint(0x00ff00);
+            this.time.delayedCall(300, () => {
+                if (this.player) this.player.clearTint();
+            });
+        }
+        
+        this.time.delayedCall(8000, () => {
+            if (!this.isGameOver && this.healthPotions.length < this.maxHealthPotions) {
+                this.spawnHealthPotion();
+            }
+        });
+    }
+
+    private regeneratePlayerHealth(delta: number) {
+        if (!this.player) return;
+        
+        const currentHealth = this.player.getHealth();
+        const maxHealth = this.player.getMaxHealth();
+        
+        if (currentHealth < maxHealth) {
+            const healRate = 1;
+            const healAmount = healRate * (delta / 1000);
+            const newHealth = Math.min(currentHealth + healAmount, maxHealth);
+            this.player.setHealth(newHealth);
+            
+            this.healthText.setText(`HP: ${Math.floor(this.player.getHealth())}/${maxHealth}`);
+        }
+    }
+
+    private updateWeaponInfo() {
+        if (!this.player || this.playerBlades.length === 0) return;
+        
+        const bladeArray = this.playerBlades[0];
+        const weaponType = bladeArray.getWeaponType();
+        const weaponLevel = bladeArray.getWeaponLevel();
+        const bladeCount = bladeArray.getBladeCount();
+        const weaponStats = bladeArray.getWeaponStats();
+        const totalDamage = bladeArray.getEffectiveDamage();
+        
+        const weaponTypeNames: Record<string, string> = {
+            'sword': '剑',
+            'axe': '斧',
+            'spear': '矛',
+            'hammer': '锤',
+            'dagger': '匕首'
+        };
+        
+        const weaponName = weaponTypeNames[weaponType] || weaponType;
+        
+        this.weaponInfoText.setText(
+            `武器: ${weaponName} Lv${weaponLevel}\n` +
+            `数量: ${bladeCount}\n` +
+            `攻击力: ${weaponStats.damage}\n` +
+            `总攻击力: ${totalDamage}`
+        );
     }
 }

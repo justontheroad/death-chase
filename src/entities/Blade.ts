@@ -64,11 +64,11 @@ export class BladeArray extends Phaser.GameObjects.Container {
 
     private calculateWeaponStats(): WeaponStats {
         const baseStats: Record<WeaponType, WeaponStats> = {
-            [WeaponType.SWORD]: { damage: 3, range: 1.0, speed: 1.0, health: 100 },
-            [WeaponType.AXE]: { damage: 5, range: 0.8, speed: 0.7, health: 120 },
-            [WeaponType.SPEAR]: { damage: 2, range: 1.3, speed: 0.9, health: 80 },
-            [WeaponType.HAMMER]: { damage: 6, range: 0.6, speed: 0.5, health: 150 },
-            [WeaponType.DAGGER]: { damage: 1, range: 0.9, speed: 1.3, health: 60 }
+            [WeaponType.SWORD]: { damage: 10, range: 1.0, speed: 1.0, health: 100 },
+            [WeaponType.AXE]: { damage: 15, range: 0.8, speed: 0.7, health: 120 },
+            [WeaponType.SPEAR]: { damage: 8, range: 1.3, speed: 0.9, health: 80 },
+            [WeaponType.HAMMER]: { damage: 20, range: 0.6, speed: 0.5, health: 150 },
+            [WeaponType.DAGGER]: { damage: 6, range: 0.9, speed: 1.3, health: 60 }
         };
 
         const base = baseStats[this.weaponType];
