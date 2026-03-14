@@ -1,5 +1,6 @@
 import { BladeArray, WeaponType } from '../entities/Blade';
 import { Character } from '../entities/Character';
+import { AudioManager } from '../utils/AudioManager';
 
 interface EnemyData {
     character: Character;
@@ -45,6 +46,9 @@ export class GameScene extends Phaser.Scene {
     public playerLevel: number = 1;
     public playerExp: number = 0;
     public weaponCollectCount: number = 0;
+    private playerWeaponType: WeaponType = WeaponType.SWORD;
+    private weaponInfoUpdateCounter: number = 0;
+    private combatTimerEvent: Phaser.Time.TimerEvent | null = null;
     public expToNextLevel: number = 100;
     private playerLastHitTime: number = 0; // 玩家上次被击中的时间
     
@@ -66,17 +70,23 @@ export class GameScene extends Phaser.Scene {
     private enemyCountText!: Phaser.GameObjects.Text;
     private bossHealthText!: Phaser.GameObjects.Text;
     private weaponInfoText!: Phaser.GameObjects.Text;
+    private memoryText!: Phaser.GameObjects.Text;
+    private memoryUpdateCounter: number = 0;
     private victoryText!: Phaser.GameObjects.Text;
     
     // Movement
     private playerTargetX: number = 400;
     private playerTargetY: number = 300;
     private isMoving: boolean = false;
+    private playerKnockbackTimer: number = 0;
+    private playerKnockbackDirX: number = 0;
+    private playerKnockbackDirY: number = 0;
     
     // Game state
     private isGameOver: boolean = false;
     private isVictory: boolean = false;
     private currentStage: number = 1;
+    private audioManager!: AudioManager;
 
     constructor() {
         super('GameScene');
@@ -90,6 +100,8 @@ export class GameScene extends Phaser.Scene {
         this.background.setDepth(-10);
 
         this.createPlayer();
+        this.audioManager = new AudioManager(this);
+        this.audioManager.startBackgroundMusic();
         this.setupCamera();
         this.createUI();
         this.createWeaponPowerUps();
@@ -101,8 +113,8 @@ export class GameScene extends Phaser.Scene {
 
         this.input.on('pointerdown', this.handlePointerDown, this);
 
-        this.time.addEvent({
-            delay: 16,
+        this.combatTimerEvent = this.time.addEvent({
+            delay: 100,
             callback: this.updateCombat,
             callbackScope: this,
             loop: true
@@ -126,7 +138,22 @@ export class GameScene extends Phaser.Scene {
         this.updateWeaponPowerUps(delta);
         this.updateHealthPotions(delta);
         this.regeneratePlayerHealth(delta);
-        this.updateWeaponInfo();
+        this.weaponInfoUpdateCounter++;
+        if (this.weaponInfoUpdateCounter >= 10) {
+            this.weaponInfoUpdateCounter = 0;
+            this.updateWeaponInfo();
+        }
+
+        this.memoryUpdateCounter++;
+        if (this.memoryUpdateCounter >= 60) {
+            this.memoryUpdateCounter = 0;
+            if (performance && (performance as any).memory) {
+                const mem = (performance as any).memory;
+                const usedMB = Math.round(mem.usedJSHeapSize / 1048576);
+                const totalMB = Math.round(mem.jsHeapSizeLimit / 1048576);
+                this.memoryText.setText(`内存: ${usedMB}MB / ${totalMB}MB`);
+            }
+        }
     }
 
     private createPlayer() {
@@ -153,12 +180,29 @@ export class GameScene extends Phaser.Scene {
         
         if (!this.player) return;
         
-        // 为玩家选择武器类型（可以根据玩家等级或其他因素决定）
-        const weaponType = this.getRandomWeaponType();
+        // 保留现有武器类型，只在第一次创建时随机选择
+        let weaponType = this.playerWeaponType;
+        if (weaponType === undefined || weaponType === null) {
+            weaponType = this.getRandomWeaponType();
+            this.playerWeaponType = weaponType;
+        }
+        
         const weaponLevel = Math.min(Math.floor(this.playerLevel / 2) + 1, 5);
         
-        // 计算新的武器数量，确保至少为playerLevel + 2
-        const newBladeCount = Math.max(this.playerLevel + 2, currentBladeCount);
+        const maxBladeCountMap: Record<WeaponType, number> = {
+            [WeaponType.DAGGER]: 12,
+            [WeaponType.SWORD]: 8,
+            [WeaponType.SPEAR]: 6,
+            [WeaponType.AXE]: 5,
+            [WeaponType.HAMMER]: 4
+        };
+        const maxBladeCount = maxBladeCountMap[weaponType];
+        let newBladeCount: number;
+        if (maxBladeCount > 3) {
+            newBladeCount = Phaser.Math.Between(1, 2);
+        } else {
+            newBladeCount = 1;
+        }
         
         const bladeArray = new BladeArray(
             this,
@@ -166,7 +210,7 @@ export class GameScene extends Phaser.Scene {
             this.player.y,
             {
                 bladeCount: newBladeCount,
-                radius: 120,
+                radius: 100,
                 rotationSpeed: 3.0,
                 clockwise: true,
                 weaponType: weaponType,
@@ -250,6 +294,15 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 3
         });
         this.weaponInfoText.setScrollFactor(0);
+
+        this.memoryText = this.add.text(20, 130, '内存: --', {
+            fontFamily: 'Arial',
+            fontSize: '14px',
+            color: '#ffff00',
+            stroke: '#000000',
+            strokeThickness: 2
+        });
+        this.memoryText.setScrollFactor(0);
     }
 
     private initializeEnemies() {
@@ -304,9 +357,25 @@ export class GameScene extends Phaser.Scene {
         const blades: BladeArray[] = [];
         const weaponType = this.getRandomWeaponType();
         const weaponLevel = Math.min(enemyLevel, 5);
+        
+        const maxBladeCountMap: Record<WeaponType, number> = {
+            [WeaponType.DAGGER]: 12,
+            [WeaponType.SWORD]: 8,
+            [WeaponType.SPEAR]: 6,
+            [WeaponType.AXE]: 5,
+            [WeaponType.HAMMER]: 4
+        };
+        const maxBladeCount = maxBladeCountMap[weaponType];
+        let enemyBladeCount: number;
+        if (maxBladeCount > 3) {
+            enemyBladeCount = Phaser.Math.Between(1, 2);
+        } else {
+            enemyBladeCount = 1;
+        }
+        
         const bladeArray = new BladeArray(this, x, y, {
-            bladeCount: enemyLevel + 1,
-            radius: 80,
+            bladeCount: enemyBladeCount,
+            radius: 100,
             rotationSpeed: 2.0 + Math.random() * 2.0,
             clockwise: Math.random() > 0.5,
             weaponType: weaponType,
@@ -366,9 +435,20 @@ export class GameScene extends Phaser.Scene {
         const blades: BladeArray[] = [];
         const weaponType = this.getRandomWeaponType();
         const weaponLevel = Math.min(bossLevel, 5);
+        
+        const maxBladeCountMap: Record<WeaponType, number> = {
+            [WeaponType.DAGGER]: 12,
+            [WeaponType.SWORD]: 8,
+            [WeaponType.SPEAR]: 6,
+            [WeaponType.AXE]: 5,
+            [WeaponType.HAMMER]: 4
+        };
+        const maxBladeCount = maxBladeCountMap[weaponType];
+        const bossBladeCount = maxBladeCount;
+        
         const bladeArray = new BladeArray(this, x, y, {
-            bladeCount: bossLevel + 3,
-            radius: 150,
+            bladeCount: bossBladeCount,
+            radius: 100,
             rotationSpeed: 4.0,
             clockwise: true,
             weaponType: weaponType,
@@ -517,11 +597,6 @@ export class GameScene extends Phaser.Scene {
                                 if (enemyBladeArray.isEmpty()) {
                                     this.defeatEnemy(enemyIndex);
                                 }
-                                
-                                // 检查玩家是否所有武器都被摧毁
-                                if (playerBladeArray.isEmpty()) {
-                                    this.gameOver();
-                                }
                             }
                         });
                     });
@@ -594,11 +669,6 @@ export class GameScene extends Phaser.Scene {
                             if (bossBladeArray.isEmpty()) {
                                 this.defeatBoss();
                             }
-                            
-                            // 检查玩家是否所有武器都被摧毁
-                            if (playerBladeArray.isEmpty()) {
-                                this.gameOver();
-                            }
                         }
                     });
                 });
@@ -627,6 +697,9 @@ export class GameScene extends Phaser.Scene {
                         // 扣除玩家的生命值
                         const enemyWeaponDamage = enemyBladeArray.getWeaponStats().damage;
                         const playerIsDead = this.player!.takeDamage(enemyWeaponDamage);
+                        if (!playerIsDead) {
+                            this.audioManager.playPlayerHurtSound();
+                        }
                         
                         // 更新玩家被击中的时间
                         this.playerLastHitTime = currentTime;
@@ -689,11 +762,6 @@ export class GameScene extends Phaser.Scene {
                                         this.defeatEnemy(enemyIndex);
                                     }
                                 }
-                                
-                                // 检查玩家是否所有武器都被摧毁
-                                if (playerBladeArray.isEmpty()) {
-                                    this.gameOver();
-                                }
                             }
                         });
                     });
@@ -718,6 +786,9 @@ export class GameScene extends Phaser.Scene {
                         // 扣除玩家的生命值
                         const bossWeaponDamage = bossBladeArray.getWeaponStats().damage;
                         const playerIsDead = this.player!.takeDamage(bossWeaponDamage);
+                        if (!playerIsDead) {
+                            this.audioManager.playPlayerHurtSound();
+                        }
                         
                         // 更新玩家被击中的时间
                         this.playerLastHitTime = currentTime;
@@ -770,11 +841,6 @@ export class GameScene extends Phaser.Scene {
                                     bossBladeArray.setBladeHealth(bossBladeIndex, newBossBladeHealth);
                                 }
                                 
-                                // 检查玩家是否所有武器都被摧毁
-                                if (playerBladeArray.isEmpty()) {
-                                    this.gameOver();
-                                }
-                                
                                 // 检查BOSS是否所有武器都被摧毁
                                 if (bossBladeArray.isEmpty()) {
                                     this.defeatBoss();
@@ -788,6 +854,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private defeatEnemy(index: number) {
+        this.audioManager.playKillSound();
         const enemyData = this.enemies[index];
         
         enemyData.blades.forEach(bladeArray => bladeArray.destroy());
@@ -890,10 +957,16 @@ export class GameScene extends Phaser.Scene {
     private checkLevelUp() {
         if (this.playerExp >= this.expToNextLevel) {
             this.playerLevel++;
+            this.audioManager.playLevelUpSound();
             this.playerExp = 0;
             this.expToNextLevel = Math.floor(this.expToNextLevel * 1.3);
             
             this.createPlayerBlades();
+            
+            // 玩家升级时，武器跟随升1级（最大5级）
+            if (this.playerBlades.length > 0 && this.playerBlades[0].getWeaponLevel() < 5) {
+                this.playerBlades[0].upgradeWeapon();
+            }
             
             if (this.player) {
                 this.player.levelUp(); // 调用levelUp方法增加hp
@@ -913,6 +986,15 @@ export class GameScene extends Phaser.Scene {
     private gameOver() {
         this.isGameOver = true;
         
+        if (this.combatTimerEvent) {
+            this.combatTimerEvent.remove();
+            this.combatTimerEvent = null;
+        }
+
+        if (this.audioManager) {
+            this.audioManager.destroy();
+        }
+        
         this.victoryText.setText('GAME OVER');
         this.victoryText.setColor('#ff0000');
         this.victoryText.setVisible(true);
@@ -926,6 +1008,24 @@ export class GameScene extends Phaser.Scene {
 
     private updatePlayerMovement(delta: number) {
         if (!this.player) return;
+        
+        // 处理玩家击退效果
+        if (this.playerKnockbackTimer > 0) {
+            this.playerKnockbackTimer -= delta;
+            const knockbackSpeed = 80 * (delta / 1000);
+            this.player.x += this.playerKnockbackDirX * knockbackSpeed;
+            this.player.y += this.playerKnockbackDirY * knockbackSpeed;
+            
+            // 更新武器位置跟随玩家
+            this.playerBlades.forEach(bladeArray => {
+                bladeArray.setPosition(this.player!.x, this.player!.y);
+            });
+            
+            if (this.playerKnockbackTimer <= 0) {
+                this.playerKnockbackTimer = 0;
+            }
+            return;
+        }
         
         const dx = this.playerTargetX - this.player.x;
         const dy = this.playerTargetY - this.player.y;
@@ -1012,6 +1112,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     private handleWeaponCollision(playerBladeArray: BladeArray, enemyBladeArray: BladeArray, playerBlade: Phaser.GameObjects.Sprite, enemyBlade: Phaser.GameObjects.Sprite) {
+        this.audioManager.playHitSound();
+        
         // 计算碰撞方向
         const playerBladeMatrix = playerBlade.getWorldTransformMatrix();
         const playerBladeX = playerBladeMatrix.tx;
@@ -1030,12 +1132,11 @@ export class GameScene extends Phaser.Scene {
             const directionX = dx / distance;
             const directionY = dy / distance;
             
-            // 玩家稍微后退
+            // 玩家击退效果（平滑后退）
             if (this.player) {
-                this.player.x += directionX * 10;
-                this.player.y += directionY * 10;
-                
-                // 同时停止玩家的移动
+                this.playerKnockbackTimer = 200;
+                this.playerKnockbackDirX = directionX;
+                this.playerKnockbackDirY = directionY;
                 this.isMoving = false;
             }
         }
@@ -1074,9 +1175,31 @@ export class GameScene extends Phaser.Scene {
         // 生成随机武器类型、等级和数量
         const weaponType = this.getRandomWeaponType();
         const weaponLevel = this.getRandomWeaponLevel();
-        const bladeCount = Phaser.Math.Between(1, 3);
+        const weaponMaxCountMap: Record<WeaponType, number> = {
+            [WeaponType.SWORD]: 8,
+            [WeaponType.AXE]: 5,
+            [WeaponType.SPEAR]: 6,
+            [WeaponType.HAMMER]: 4,
+            [WeaponType.DAGGER]: 12
+        };
+        
+        const maxBladeCount = weaponMaxCountMap[weaponType];
+        
+        let bladeCount: number;
+        if (maxBladeCount <= 4) {
+            bladeCount = 1;
+        } else {
+            bladeCount = Phaser.Math.Between(1, Math.min(2, maxBladeCount));
+        }
 
-        const powerUp = this.add.sprite(x, y, 'blade');
+        const weaponTextures: Record<WeaponType, string> = {
+            [WeaponType.SWORD]: 'weapon_sword',
+            [WeaponType.AXE]: 'weapon_axe',
+            [WeaponType.SPEAR]: 'weapon_spear',
+            [WeaponType.HAMMER]: 'weapon_hammer',
+            [WeaponType.DAGGER]: 'weapon_dagger'
+        };
+        const powerUp = this.add.sprite(x, y, weaponTextures[weaponType]);
         
         // 根据武器等级设置颜色
         const levelTints = [
@@ -1163,33 +1286,51 @@ export class GameScene extends Phaser.Scene {
     }
 
     private collectWeaponPowerUp(index: number, characterType: 'player' | 'enemy', enemyIndex?: number) {
+        this.audioManager.playPowerUpSound();
         const powerUp = this.weaponPowerUps[index];
         if (!powerUp.isActive) return;
+        
+        console.log('[WeaponPickup] Collecting weapon:', powerUp.weaponType, 'bladeCount:', powerUp.bladeCount);
         
         powerUp.isActive = false;
         powerUp.sprite.destroy();
 
-        this.weaponCollectCount += powerUp.bladeCount;
-        if (this.playerBlades.length > 0 && this.playerBlades[0].getWeaponLevel() < 3) {
-            if (this.weaponCollectCount >= 5) {
-                this.playerBlades[0].upgradeWeapon();
-                this.weaponCollectCount = 0;
-            }
-        }
-        
         this.weaponPowerUps.splice(index, 1);
         
         if (characterType === 'player' && this.player) {
-            // 计算当前武器数量
-            let currentBladeCount = 0;
-            if (this.playerBlades.length > 0) {
-                currentBladeCount = this.playerBlades[0].getBladeCount();
+            // 玩家拾取武器时，增加武器收集计数，用于升级
+            this.weaponCollectCount += powerUp.bladeCount;
+            if (this.playerBlades.length > 0 && this.playerBlades[0].getWeaponLevel() < 5) {
+                if (this.weaponCollectCount >= 2) {
+                    this.playerBlades[0].upgradeWeapon();
+                    this.weaponCollectCount = 0;
+                }
             }
             
-            // 增加对应的武器数量
-            const newBladeCount = currentBladeCount + powerUp.bladeCount;
+            // 更新玩家的武器类型
+            this.playerWeaponType = powerUp.weaponType;
             
-            // 创建新的武器数组，使用拾取的武器类型和等级
+            // 计算当前武器数量和等级
+            let currentBladeCount = 0;
+            let currentWeaponLevel = 1;
+            if (this.playerBlades.length > 0) {
+                currentBladeCount = this.playerBlades[0].getBladeCount();
+                currentWeaponLevel = this.playerBlades[0].getWeaponLevel();
+            }
+            
+            // 增加对应的武器数量，保留当前武器等级（只保留不降低）
+            const maxBladeCountMap: Record<WeaponType, number> = {
+                [WeaponType.DAGGER]: 12,
+                [WeaponType.SWORD]: 8,
+                [WeaponType.SPEAR]: 6,
+                [WeaponType.AXE]: 5,
+                [WeaponType.HAMMER]: 4
+            };
+            const maxBladeCount = maxBladeCountMap[powerUp.weaponType];
+            const newBladeCount = Math.min(currentBladeCount + powerUp.bladeCount, maxBladeCount);
+            const newWeaponLevel = Math.max(currentWeaponLevel, powerUp.weaponLevel);
+            
+            // 创建新的武器数组，使用当前等级
             this.playerBlades.forEach(bladeArray => bladeArray.destroy());
             this.playerBlades = [];
             
@@ -1199,11 +1340,11 @@ export class GameScene extends Phaser.Scene {
                 this.player.y,
                 {
                     bladeCount: newBladeCount,
-                    radius: 120,
+                    radius: 100,
                     rotationSpeed: 3.0,
                     clockwise: true,
                     weaponType: powerUp.weaponType,
-                    weaponLevel: powerUp.weaponLevel
+                    weaponLevel: newWeaponLevel
                 }
             );
             
@@ -1217,7 +1358,7 @@ export class GameScene extends Phaser.Scene {
                 0x0000ff, // Level 4 - Blue
                 0xff00ff  // Level 5 - Purple
             ];
-            const tint = levelTints[Math.min(powerUp.weaponLevel - 1, levelTints.length - 1)];
+            const tint = levelTints[Math.min(newWeaponLevel - 1, levelTints.length - 1)];
             this.player.setTint(tint);
             this.time.delayedCall(300, () => {
                 if (this.player) this.player.clearTint();
@@ -1225,16 +1366,27 @@ export class GameScene extends Phaser.Scene {
         } else if (characterType === 'enemy' && enemyIndex !== undefined) {
             const enemyData = this.enemies[enemyIndex];
             if (enemyData) {
-                // 计算当前武器数量
+                // 计算当前武器数量和等级
                 let currentBladeCount = 0;
+                let currentWeaponLevel = 1;
                 if (enemyData.blades.length > 0) {
                     currentBladeCount = enemyData.blades[0].getBladeCount();
+                    currentWeaponLevel = enemyData.blades[0].getWeaponLevel();
                 }
                 
-                // 增加对应的武器数量
-                const newBladeCount = currentBladeCount + powerUp.bladeCount;
+                // 增加对应的武器数量，保留当前武器等级
+                const maxBladeCountMap: Record<WeaponType, number> = {
+                    [WeaponType.DAGGER]: 12,
+                    [WeaponType.SWORD]: 8,
+                    [WeaponType.SPEAR]: 6,
+                    [WeaponType.AXE]: 5,
+                    [WeaponType.HAMMER]: 4
+                };
+                const maxBladeCount = maxBladeCountMap[powerUp.weaponType];
+                const newBladeCount = Math.min(currentBladeCount + powerUp.bladeCount, maxBladeCount);
+                const newWeaponLevel = Math.max(currentWeaponLevel, powerUp.weaponLevel);
                 
-                // 创建新的武器数组，使用拾取的武器类型和等级
+                // 创建新的武器数组，使用当前等级
                 enemyData.blades.forEach(bladeArray => bladeArray.destroy());
                 enemyData.blades = [];
                 
@@ -1244,11 +1396,11 @@ export class GameScene extends Phaser.Scene {
                     enemyData.character.y,
                     {
                         bladeCount: newBladeCount,
-                        radius: 80,
+                        radius: 100,
                         rotationSpeed: 2.0 + Math.random() * 2.0,
                         clockwise: Math.random() > 0.5,
                         weaponType: powerUp.weaponType,
-                        weaponLevel: powerUp.weaponLevel
+                        weaponLevel: newWeaponLevel
                     }
                 );
                 
@@ -1325,6 +1477,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private collectHealthPotion(index: number) {
+        this.audioManager.playPowerUpSound();
         const potion = this.healthPotions[index];
         if (!potion.isActive) return;
         
@@ -1390,12 +1543,20 @@ export class GameScene extends Phaser.Scene {
         
         const weaponName = weaponTypeNames[weaponType] || weaponType;
         
+        const blades = bladeArray.getBlades();
+        let healthInfo = '';
+        for (let i = 0; i < blades.length; i++) {
+            const health = bladeArray.getBladeHealth(i);
+            const maxHealth = weaponStats.health;
+            healthInfo += `${i + 1}:${health}/${maxHealth} `;
+        }
+        
         this.weaponInfoText.setText(
             `武器: ${weaponName} Lv${weaponLevel}\n` +
             `数量: ${bladeCount}\n` +
             `攻击力: ${weaponStats.damage}\n` +
-            `生命: ${weaponStats.health}\n` +
-            `总攻击力: ${totalDamage}`
+            `总攻击力: ${totalDamage}\n` +
+            `生命: ${healthInfo}`
         );
     }
 }

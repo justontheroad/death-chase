@@ -15,6 +15,7 @@ export interface WeaponStats {
     range: number;
     speed: number;
     health: number;
+    maxBladeCount: number;
 }
 
 export interface BladeConfig {
@@ -64,11 +65,11 @@ export class BladeArray extends Phaser.GameObjects.Container {
 
     private calculateWeaponStats(): WeaponStats {
         const baseStats: Record<WeaponType, WeaponStats> = {
-            [WeaponType.SWORD]: { damage: 10, range: 1.0, speed: 1.0, health: 100 },
-            [WeaponType.AXE]: { damage: 15, range: 0.8, speed: 0.7, health: 120 },
-            [WeaponType.SPEAR]: { damage: 8, range: 1.3, speed: 0.9, health: 80 },
-            [WeaponType.HAMMER]: { damage: 20, range: 0.6, speed: 0.5, health: 150 },
-            [WeaponType.DAGGER]: { damage: 6, range: 0.9, speed: 1.3, health: 60 }
+            [WeaponType.SWORD]: { damage: 10, range: 1.0, speed: 1.0, health: 100, maxBladeCount: 8 },
+            [WeaponType.AXE]: { damage: 15, range: 0.8, speed: 0.7, health: 120, maxBladeCount: 5 },
+            [WeaponType.SPEAR]: { damage: 8, range: 1.3, speed: 0.9, health: 80, maxBladeCount: 6 },
+            [WeaponType.HAMMER]: { damage: 20, range: 0.6, speed: 0.5, health: 150, maxBladeCount: 4 },
+            [WeaponType.DAGGER]: { damage: 6, range: 0.9, speed: 1.3, health: 60, maxBladeCount: 12 }
         };
 
         const base = baseStats[this.weaponType];
@@ -78,11 +79,17 @@ export class BladeArray extends Phaser.GameObjects.Container {
             damage: Math.floor(base.damage * levelMultiplier),
             range: base.range,
             speed: base.speed,
-            health: Math.floor(base.health * levelMultiplier)
+            health: Math.floor(base.health * levelMultiplier),
+            maxBladeCount: base.maxBladeCount
         };
     }
 
     public upgradeWeapon() {
+        const maxBladeCount = this.weaponStats.maxBladeCount;
+        if (this.bladeCount < maxBladeCount) {
+            this.bladeCount++;
+            this.createBlades();
+        }
         this.weaponLevel++;
         this.weaponStats = this.calculateWeaponStats();
         this.updateBladeAppearance();
@@ -145,8 +152,8 @@ export class BladeArray extends Phaser.GameObjects.Container {
         
         for (let i = 0; i < this.bladeCount; i++) {
             const angle = (i / this.bladeCount) * Math.PI * 2;
-            const bladeX = Math.cos(angle) * this.radius;
-            const bladeY = Math.sin(angle) * this.radius;
+            const bladeX = Math.cos(angle) * this.radius * this.weaponStats.range;
+            const bladeY = Math.sin(angle) * this.radius * this.weaponStats.range;
             
             const blade = this.scene.add.sprite(bladeX, bladeY, weaponTexture);
             blade.setOrigin(0.5, 0.5);
@@ -171,10 +178,13 @@ export class BladeArray extends Phaser.GameObjects.Container {
         const rotationDelta = this.rotationSpeed * this.weaponStats.speed * (delta / 1000);
         this.rotation += this.clockwise ? rotationDelta : -rotationDelta;
         
-        // Update individual blade rotations to point in the direction of movement
+        // Update blade positions to orbit around center, with weapon head pointing outward
         this.blades.forEach((blade, index) => {
             const angle = (index / this.bladeCount) * Math.PI * 2 + this.rotation;
-            blade.sprite.rotation = angle + Math.PI / 2; // 调整武器朝向，使其尖端指向旋转方向
+            const bladeX = Math.cos(angle) * this.radius * this.weaponStats.range;
+            const bladeY = Math.sin(angle) * this.radius * this.weaponStats.range;
+            blade.sprite.setPosition(bladeX, bladeY);
+            blade.sprite.rotation = angle;
         });
     }
 
@@ -239,6 +249,10 @@ export class BladeArray extends Phaser.GameObjects.Container {
 
     public getWeaponStats(): WeaponStats {
         return this.weaponStats;
+    }
+
+    public getMaxBladeCount(): number {
+        return this.weaponStats.maxBladeCount;
     }
 
     public getEffectiveDamage(): number {
