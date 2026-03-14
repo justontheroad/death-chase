@@ -5,6 +5,7 @@ interface EnemyData {
     character: Character;
     blades: BladeArray[];
     level: number;
+    totalAttackPower: number;
     moveTargetX: number;
     moveTargetY: number;
     isMoving: boolean;
@@ -43,6 +44,7 @@ export class GameScene extends Phaser.Scene {
     public playerBlades: BladeArray[] = [];
     public playerLevel: number = 1;
     public playerExp: number = 0;
+    public weaponCollectCount: number = 0;
     public expToNextLevel: number = 100;
     private playerLastHitTime: number = 0; // 玩家上次被击中的时间
     
@@ -190,7 +192,7 @@ export class GameScene extends Phaser.Scene {
     private healthText!: Phaser.GameObjects.Text;
 
     private createUI() {
-        this.levelText = this.add.text(20, 20, `Level: ${this.playerLevel}`, {
+        this.levelText = this.add.text(20, 20, `等级: ${this.playerLevel}`, {
             fontSize: '28px',
             color: '#ffffff',
             stroke: '#000000',
@@ -198,7 +200,7 @@ export class GameScene extends Phaser.Scene {
         });
         this.levelText.setScrollFactor(0);
 
-        this.expText = this.add.text(20, 55, `EXP: ${this.playerExp}/${this.expToNextLevel}`, {
+        this.expText = this.add.text(20, 55, `经验: ${this.playerExp}/${this.expToNextLevel}`, {
             fontSize: '22px',
             color: '#ffff00',
             stroke: '#000000',
@@ -206,7 +208,7 @@ export class GameScene extends Phaser.Scene {
         });
         this.expText.setScrollFactor(0);
 
-        this.healthText = this.add.text(20, 90, `HP: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`, {
+        this.healthText = this.add.text(20, 90, `生命: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`, {
             fontSize: '22px',
             color: '#00ff00',
             stroke: '#000000',
@@ -214,7 +216,7 @@ export class GameScene extends Phaser.Scene {
         });
         this.healthText.setScrollFactor(0);
 
-        this.enemyCountText = this.add.text(20, 120, `Enemies: ${this.totalEnemySlots}`, {
+        this.enemyCountText = this.add.text(380, 20, `敌人: ${this.totalEnemySlots}`, {
             fontSize: '20px',
             color: '#ff6666',
             stroke: '#000000',
@@ -222,7 +224,7 @@ export class GameScene extends Phaser.Scene {
         });
         this.enemyCountText.setScrollFactor(0);
 
-        this.bossHealthText = this.add.text(20, 150, '', {
+        this.bossHealthText = this.add.text(380, 50, '', {
             fontSize: '24px',
             color: '#ff0000',
             stroke: '#000000',
@@ -241,7 +243,7 @@ export class GameScene extends Phaser.Scene {
         this.victoryText.setScrollFactor(0);
         this.victoryText.setVisible(false);
 
-        this.weaponInfoText = this.add.text(20, 150, '', {
+        this.weaponInfoText = this.add.text(380, 90, '', {
             fontSize: '20px',
             color: '#00ffff',
             stroke: '#000000',
@@ -319,6 +321,7 @@ export class GameScene extends Phaser.Scene {
             character: enemy,
             blades: blades,
             level: enemyLevel,
+            totalAttackPower: bladeArray.getEffectiveDamage(),
             moveTargetX,
             moveTargetY,
             isMoving: true,
@@ -383,7 +386,7 @@ export class GameScene extends Phaser.Scene {
             lastHitTime: 0
         };
         
-        this.bossHealthText.setText(`BOSS HP: ${this.boss.currentHealth}/${this.boss.maxHealth}`);
+        this.bossHealthText.setText(`BOSS生命: ${this.boss.currentHealth}/${this.boss.maxHealth}`);
         this.bossHealthText.setVisible(true);
     }
 
@@ -415,7 +418,7 @@ export class GameScene extends Phaser.Scene {
         });
         
         const aliveEnemies = this.enemies.filter(e => e.character.active).length;
-        this.enemyCountText.setText(`Enemies: ${aliveEnemies}/${this.totalEnemySlots}`);
+        this.enemyCountText.setText(`敌人: ${aliveEnemies}/${this.totalEnemySlots}`);
     }
 
     private updateBoss(delta: number) {
@@ -428,7 +431,7 @@ export class GameScene extends Phaser.Scene {
             bladeArray.setPosition(boss.x, boss.y);
         });
         
-        this.bossHealthText.setText(`BOSS HP: ${this.boss.currentHealth}/${this.boss.maxHealth}`);
+        this.bossHealthText.setText(`BOSS生命: ${this.boss.currentHealth}/${this.boss.maxHealth}`);
     }
 
     private updateCombat() {
@@ -632,7 +635,7 @@ export class GameScene extends Phaser.Scene {
                             this.gameOver();
                         } else {
                             // 更新玩家生命值显示
-                            this.healthText.setText(`HP: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`);
+                            this.healthText.setText(`生命: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`);
                         }
                     }
                     
@@ -723,7 +726,7 @@ export class GameScene extends Phaser.Scene {
                             this.gameOver();
                         } else {
                             // 更新玩家生命值显示
-                            this.healthText.setText(`HP: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`);
+                            this.healthText.setText(`生命: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`);
                         }
                     }
                     
@@ -799,7 +802,7 @@ export class GameScene extends Phaser.Scene {
             }
         });
         
-        this.playerExp += enemyData.level * 20;
+        this.playerExp += enemyData.totalAttackPower * 2;
         this.checkLevelUp();
         this.expText.setText(`EXP: ${this.playerExp}/${this.expToNextLevel}`);
         
@@ -901,9 +904,9 @@ export class GameScene extends Phaser.Scene {
             }
             
             // 更新UI显示
-            this.levelText.setText(`Level: ${this.playerLevel}`);
-            this.expText.setText(`EXP: ${this.playerExp}/${this.expToNextLevel}`);
-            this.healthText.setText(`HP: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`);
+            this.levelText.setText(`等级: ${this.playerLevel}`);
+            this.expText.setText(`经验: ${this.playerExp}/${this.expToNextLevel}`);
+            this.healthText.setText(`生命: ${this.player?.getHealth() || 0}/${this.player?.getMaxHealth() || 0}`);
         }
     }
 
@@ -1165,6 +1168,14 @@ export class GameScene extends Phaser.Scene {
         
         powerUp.isActive = false;
         powerUp.sprite.destroy();
+
+        this.weaponCollectCount += powerUp.bladeCount;
+        if (this.playerBlades.length > 0 && this.playerBlades[0].getWeaponLevel() < 3) {
+            if (this.weaponCollectCount >= 5) {
+                this.playerBlades[0].upgradeWeapon();
+                this.weaponCollectCount = 0;
+            }
+        }
         
         this.weaponPowerUps.splice(index, 1);
         
@@ -1328,7 +1339,7 @@ export class GameScene extends Phaser.Scene {
             const newHealth = Math.min(currentHealth + potion.healAmount, maxHealth);
             this.player.setHealth(newHealth);
             
-            this.healthText.setText(`HP: ${this.player.getHealth()}/${maxHealth}`);
+            this.healthText.setText(`生命: ${this.player.getHealth()}/${maxHealth}`);
             
             this.player.setTint(0x00ff00);
             this.time.delayedCall(300, () => {
@@ -1355,7 +1366,7 @@ export class GameScene extends Phaser.Scene {
             const newHealth = Math.min(currentHealth + healAmount, maxHealth);
             this.player.setHealth(newHealth);
             
-            this.healthText.setText(`HP: ${Math.floor(this.player.getHealth())}/${maxHealth}`);
+            this.healthText.setText(`生命: ${Math.floor(this.player.getHealth())}/${maxHealth}`);
         }
     }
 
@@ -1383,6 +1394,7 @@ export class GameScene extends Phaser.Scene {
             `武器: ${weaponName} Lv${weaponLevel}\n` +
             `数量: ${bladeCount}\n` +
             `攻击力: ${weaponStats.damage}\n` +
+            `生命: ${weaponStats.health}\n` +
             `总攻击力: ${totalDamage}`
         );
     }

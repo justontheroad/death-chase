@@ -1,17 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <!-- Enemy Archer -->
-  <rect x="0" y="0" width="64" height="64" fill="#2c1a0f" opacity="0"/>
-  <!-- Body -->
-  <circle cx="32" cy="24" r="12" fill="#d3d3d3"/>
-  <!-- Head -->
-  <rect x="20" y="36" width="24" height="20" fill="#556b2f"/>
-  <!-- Bow -->
-  <path d="M20 24 Q32 10 44 24" stroke="#8b4513" stroke-width="2" fill="none"/>
-  <!-- String -->
-  <line x1="20" y1="24" x2="44" y2="24" stroke="#000" stroke-width="1"/>
-  <!-- Eyes -->
-  <circle cx="32" cy="24" r="2" fill="#333"/>
-  <!-- Arrow quiver -->
-  <rect x="40" y="30" width="8" height="12" fill="#8b4513"/>
+  <rect x="0" y="0" width="64" height="64" fill="transparent"/>
+  <defs>
+    <linearGradient id="skinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f5deb3"/>
+      <stop offset="100%" style="stop-color:#deb887"/>
+    </linearGradient>
+    <linearGradient id="cloakGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#228b22"/>
+      <stop offset="100%" style="stop-color:#006400"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="32" cy="20" rx="10" ry="11" fill="url(#skinGrad)"/>
+  <path d="M16 20 Q16 50 24 56 Q32 62 40 56 Q48 50 48 20 Z" fill="url(#cloakGrad)"/>
+  <path d="M22 8 L32 4 L42 8 L42 16 L22 16 Z" fill="#2d5016"/>
+  <ellipse cx="27" cy="18" rx="2" ry="2" fill="#1a1a1a"/>
+  <ellipse cx="37" cy="18" rx="2" ry="2" fill="#1a1a1a"/>
+  <path d="M28 24 L36 24" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="10" y1="30" x2="4" y2="20" stroke="#8b4513" stroke-width="2"/>
+  <line x1="4" y1="20" x2="16" y2="22" stroke="#8b4513" stroke-width="1"/>
+  <polygon points="2,16 6,18 4,22" fill="#4a4a4a"/>
 </svg>

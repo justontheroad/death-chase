@@ -46,6 +46,11 @@ export class BootScene extends Phaser.Scene {
         
         // Weapon images
         this.load.svg('blade', 'weapons/blade.svg');
+        this.load.svg('weapon_sword', 'weapons/sword.svg');
+        this.load.svg('weapon_axe', 'weapons/axe.svg');
+        this.load.svg('weapon_spear', 'weapons/spear.svg');
+        this.load.svg('weapon_hammer', 'weapons/hammer.svg');
+        this.load.svg('weapon_dagger', 'weapons/dagger.svg');
         
         // Background images
         this.load.svg('bamboo_forest', 'backgrounds/bamboo_forest.svg');

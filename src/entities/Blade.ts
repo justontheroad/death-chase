@@ -133,12 +133,22 @@ export class BladeArray extends Phaser.GameObjects.Container {
     }
 
     private createBlades() {
+        const weaponTextureMap: Record<WeaponType, string> = {
+            [WeaponType.SWORD]: 'weapon_sword',
+            [WeaponType.AXE]: 'weapon_axe',
+            [WeaponType.SPEAR]: 'weapon_spear',
+            [WeaponType.HAMMER]: 'weapon_hammer',
+            [WeaponType.DAGGER]: 'weapon_dagger'
+        };
+        
+        const weaponTexture = weaponTextureMap[this.weaponType] || 'blade';
+        
         for (let i = 0; i < this.bladeCount; i++) {
             const angle = (i / this.bladeCount) * Math.PI * 2;
             const bladeX = Math.cos(angle) * this.radius;
             const bladeY = Math.sin(angle) * this.radius;
             
-            const blade = this.scene.add.sprite(bladeX, bladeY, 'blade');
+            const blade = this.scene.add.sprite(bladeX, bladeY, weaponTexture);
             blade.setOrigin(0.5, 0.5);
             
             // Apply weapon appearance

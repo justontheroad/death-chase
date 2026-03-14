@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <rect x="0" y="0" width="64" height="64" fill="transparent"/>
+  <defs>
+    <linearGradient id="hammerHeadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#7a7a7a"/>
+      <stop offset="50%" style="stop-color:#585858"/>
+      <stop offset="100%" style="stop-color:#404040"/>
+    </linearGradient>
+    <linearGradient id="hammerHandleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#8b4513"/>
+      <stop offset="50%" style="stop-color:#654321"/>
+      <stop offset="100%" style="stop-color:#3d2314"/>
+    </linearGradient>
+  </defs>
+  <rect x="29" y="24" width="6" height="34" fill="url(#hammerHandleGrad)" rx="1"/>
+  <rect x="16" y="8" width="32" height="18" fill="url(#hammerHeadGrad)" rx="3"/>
+  <rect x="16" y="10" width="32" height="3" fill="#909090"/>
+  <rect x="16" y="21" width="32" height="3" fill="#303030"/>
+  <rect x="28" y="22" width="8" height="4" fill="#ffd700"/>
+</svg>

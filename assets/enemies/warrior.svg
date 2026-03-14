@@ -1,16 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <!-- Enemy Warrior -->
-  <rect x="0" y="0" width="64" height="64" fill="#2c1a0f" opacity="0"/>
-  <!-- Body -->
-  <circle cx="32" cy="24" r="12" fill="#d3d3d3"/>
-  <!-- Head -->
-  <rect x="20" y="36" width="24" height="20" fill="#4b4b4b"/>
-  <!-- Armor -->
-  <rect x="24" y="16" width="16" height="4" fill="#696969"/>
-  <!-- Armor plates -->
-  <circle cx="32" cy="24" r="2" fill="#333"/>
-  <!-- Eyes -->
-  <path d="M26 28 L38 28 L32 36 Z" fill="#ff0000"/>
-  <!-- Aggressive stance -->
+  <rect x="0" y="0" width="64" height="64" fill="transparent"/>
+  <defs>
+    <linearGradient id="skinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f5deb3"/>
+      <stop offset="100%" style="stop-color:#deb887"/>
+    </linearGradient>
+    <linearGradient id="warriorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b0000"/>
+      <stop offset="100%" style="stop-color:#5c0000"/>
+    </linearGradient>
+    <linearGradient id="armorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#708090"/>
+      <stop offset="100%" style="stop-color:#2f4f4f"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="32" cy="22" rx="10" ry="12" fill="url(#skinGrad)"/>
+  <rect x="20" y="32" width="24" height="24" fill="url(#armorGrad)" rx="3"/>
+  <rect x="18" y="34" width="4" height="18" fill="url(#warriorGrad)"/>
+  <rect x="42" y="34" width="4" height="18" fill="url(#warriorGrad)"/>
+  <path d="M22 12 L32 6 L42 12 L42 22 L22 22 Z" fill="#4a4a4a"/>
+  <path d="M22 12 L32 6 L42 12" stroke="#4a4a4a" stroke-width="2"/>
+  <ellipse cx="27" cy="20" rx="2" ry="2" fill="#1a1a1a"/>
+  <ellipse cx="37" cy="20" rx="2" ry="2" fill="#1a1a1a"/>
+  <path d="M28 26 L36 26" stroke="#1a1a1a" stroke-width="1"/>
+  <rect x="26" y="56" width="4" height="4" fill="#4a4a4a"/>
+  <rect x="34" y="56" width="4" height="4" fill="#4a4a4a"/>
 </svg>
