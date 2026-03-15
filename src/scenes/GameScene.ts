@@ -40,13 +40,38 @@ export interface HealthPotion {
     healAmount: number;
 }
 
+interface WeaponProfile {
+    weaponType: WeaponType;
+    bladeArray: BladeArray;
+    weaponLevel: number;
+    collectCount: number;
+}
+
+interface MenuSettings {
+    selectedStage: number;
+    selectedWeapon: WeaponType;
+    musicEnabled: boolean;
+}
+
 export class GameScene extends Phaser.Scene {
     public player: Character | null = null;
-    public playerBlades: BladeArray[] = [];
+    private weaponProfiles: Map<WeaponType, WeaponProfile> = new Map();
+    private activeWeaponType: WeaponType = WeaponType.SWORD;
+    private initialWeaponType: WeaponType = WeaponType.SWORD;
+    private initialStage: number = 1;
+    private musicEnabled: boolean = true;
     public playerLevel: number = 1;
     public playerExp: number = 0;
     public weaponCollectCount: number = 0;
-    private playerWeaponType: WeaponType = WeaponType.SWORD;
+    
+    public get playerBlades(): BladeArray[] {
+        const activeProfile = this.weaponProfiles.get(this.activeWeaponType);
+        return activeProfile ? [activeProfile.bladeArray] : [];
+    }
+    
+    public getActiveWeaponType(): WeaponType {
+        return this.activeWeaponType;
+    }
     private weaponInfoUpdateCounter: number = 0;
     private combatTimerEvent: Phaser.Time.TimerEvent | null = null;
     public expToNextLevel: number = 100;
@@ -91,7 +116,15 @@ export class GameScene extends Phaser.Scene {
     constructor() {
         super('GameScene');
     }
-
+    
+    init(data: MenuSettings) {
+        if (data) {
+            this.initialWeaponType = data.selectedWeapon || WeaponType.SWORD;
+            this.initialStage = data.selectedStage || 1;
+            this.musicEnabled = data.musicEnabled !== false;
+        }
+    }
+    
     create() {
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
@@ -101,7 +134,9 @@ export class GameScene extends Phaser.Scene {
 
         this.createPlayer();
         this.audioManager = new AudioManager(this);
-        this.audioManager.startBackgroundMusic();
+        if (this.musicEnabled) {
+            this.audioManager.startBackgroundMusic();
+        }
         this.setupCamera();
         this.createUI();
         this.createWeaponPowerUps();
@@ -169,56 +204,68 @@ export class GameScene extends Phaser.Scene {
     }
 
     private createPlayerBlades() {
-        // 计算当前武器数量
-        let currentBladeCount = 0;
-        if (this.playerBlades.length > 0) {
-            currentBladeCount = this.playerBlades[0].getBladeCount();
-        }
-        
-        this.playerBlades.forEach(bladeArray => bladeArray.destroy());
-        this.playerBlades = [];
-        
         if (!this.player) return;
         
-        // 保留现有武器类型，只在第一次创建时随机选择
-        let weaponType = this.playerWeaponType;
-        if (weaponType === undefined || weaponType === null) {
-            weaponType = this.getRandomWeaponType();
-            this.playerWeaponType = weaponType;
+        // 如果档案已存在，只更新位置，不重新创建
+        if (this.weaponProfiles.size > 0) {
+            this.updateActiveWeapon();
+            return;
         }
         
-        const weaponLevel = Math.min(Math.floor(this.playerLevel / 2) + 1, 5);
-        
-        const maxBladeCountMap: Record<WeaponType, number> = {
-            [WeaponType.DAGGER]: 12,
-            [WeaponType.SWORD]: 8,
-            [WeaponType.SPEAR]: 6,
-            [WeaponType.AXE]: 5,
-            [WeaponType.HAMMER]: 4
+        const weaponTypes = [WeaponType.SWORD, WeaponType.AXE, WeaponType.SPEAR, WeaponType.HAMMER, WeaponType.DAGGER];
+        const initialBladeCountMap: Record<WeaponType, number> = {
+            [WeaponType.DAGGER]: 3,
+            [WeaponType.SWORD]: 2,
+            [WeaponType.SPEAR]: 2,
+            [WeaponType.AXE]: 1,
+            [WeaponType.HAMMER]: 1
         };
-        const maxBladeCount = maxBladeCountMap[weaponType];
-        let newBladeCount: number;
-        if (maxBladeCount > 3) {
-            newBladeCount = Phaser.Math.Between(1, 2);
-        } else {
-            newBladeCount = 1;
+        
+        for (const weaponType of weaponTypes) {
+            const bladeArray = new BladeArray(
+                this,
+                this.player.x,
+                this.player.y,
+                {
+                    bladeCount: initialBladeCountMap[weaponType],
+                    radius: 100,
+                    rotationSpeed: 3.0,
+                    clockwise: true,
+                    weaponType: weaponType,
+                    weaponLevel: 1
+                }
+            );
+            
+            bladeArray.setVisible(false);
+            
+            const profile: WeaponProfile = {
+                weaponType: weaponType,
+                bladeArray: bladeArray,
+                weaponLevel: 1,
+                collectCount: 0
+            };
+            
+            this.weaponProfiles.set(weaponType, profile);
         }
         
-        const bladeArray = new BladeArray(
-            this,
-            this.player.x,
-            this.player.y,
-            {
-                bladeCount: newBladeCount,
-                radius: 100,
-                rotationSpeed: 3.0,
-                clockwise: true,
-                weaponType: weaponType,
-                weaponLevel: weaponLevel
+        this.activeWeaponType = this.initialWeaponType;
+        this.updateActiveWeapon();
+    }
+    
+    private updateActiveWeapon() {
+        this.weaponProfiles.forEach((profile, type) => {
+            if (type === this.activeWeaponType) {
+                profile.bladeArray.setVisible(true);
+                profile.bladeArray.setPosition(this.player!.x, this.player!.y);
+            } else {
+                profile.bladeArray.setVisible(false);
             }
-        );
-        
-        this.playerBlades.push(bladeArray);
+        });
+    }
+    
+    private switchWeaponType(newType: WeaponType) {
+        this.activeWeaponType = newType;
+        this.updateActiveWeapon();
     }
 
     private getRandomWeaponType(): WeaponType {
@@ -925,8 +972,8 @@ export class GameScene extends Phaser.Scene {
         
         this.isMoving = false;
         
-        this.time.delayedCall(3000, () => {
-            this.nextStage();
+        this.time.delayedCall(2000, () => {
+            this.scene.start('MenuScene');
         });
     }
 
@@ -937,6 +984,13 @@ export class GameScene extends Phaser.Scene {
         this.expToNextLevel = 100 * this.currentStage;
         this.isVictory = false;
         this.victoryText.setVisible(false);
+        
+        // 清理旧的武器档案
+        this.weaponProfiles.forEach((profile) => {
+            profile.bladeArray.destroy();
+        });
+        this.weaponProfiles.clear();
+        this.activeWeaponType = WeaponType.SWORD;
         
         this.enemies.forEach(enemyData => {
             enemyData.blades.forEach(bladeArray => bladeArray.destroy());
@@ -963,10 +1017,13 @@ export class GameScene extends Phaser.Scene {
             
             this.createPlayerBlades();
             
-            // 玩家升级时，武器跟随升1级（最大5级）
-            if (this.playerBlades.length > 0 && this.playerBlades[0].getWeaponLevel() < 5) {
-                this.playerBlades[0].upgradeWeapon();
-            }
+            // 玩家升级时，所有武器跟随升1级（最大5级）
+            this.weaponProfiles.forEach((profile) => {
+                if (profile.weaponLevel < 5) {
+                    profile.weaponLevel++;
+                    profile.bladeArray.setWeaponLevel(profile.weaponLevel);
+                }
+            });
             
             if (this.player) {
                 this.player.levelUp(); // 调用levelUp方法增加hp
@@ -1001,9 +1058,9 @@ export class GameScene extends Phaser.Scene {
         
         this.isMoving = false;
         
-        // 直接重启场景，而不是使用延迟调用
-        // 这样可以避免场景销毁后回调函数访问已销毁实例的问题
-        this.scene.restart();
+        this.time.delayedCall(2000, () => {
+            this.scene.start('MenuScene');
+        });
     }
 
     private updatePlayerMovement(delta: number) {
@@ -1186,10 +1243,10 @@ export class GameScene extends Phaser.Scene {
         const maxBladeCount = weaponMaxCountMap[weaponType];
         
         let bladeCount: number;
-        if (maxBladeCount <= 4) {
-            bladeCount = 1;
+        if (maxBladeCount > 4) {
+            bladeCount = Phaser.Math.Between(1, 2);
         } else {
-            bladeCount = Phaser.Math.Between(1, Math.min(2, maxBladeCount));
+            bladeCount = 1;
         }
 
         const weaponTextures: Record<WeaponType, string> = {
@@ -1255,8 +1312,36 @@ export class GameScene extends Phaser.Scene {
     private updateWeaponPowerUps(delta: number) {
         if (!this.player) return;
         
-        this.weaponPowerUps.forEach((powerUp, index) => {
-            if (!powerUp.isActive) return;
+        // 剔除无效的武器道具（已被销毁或未激活）
+        this.weaponPowerUps = this.weaponPowerUps.filter(powerUp => {
+            if (!powerUp.isActive || !powerUp.sprite.active) {
+                if (powerUp.sprite.active) {
+                    powerUp.sprite.destroy();
+                }
+                return false;
+            }
+            return true;
+        });
+        
+        // 检查地面武器是否在玩家武器库中，不存在的移除
+        // this.weaponPowerUps = this.weaponPowerUps.filter(powerUp => {
+        //     if (!this.weaponProfiles.has(powerUp.weaponType)) {
+        //         powerUp.sprite.destroy();
+        //         return false;
+        //     }
+        //     return true;
+        // });
+        
+        // 补上缺少的武器道具
+        while (this.weaponPowerUps.length < this.maxPowerUps) {
+            this.spawnWeaponPowerUp();
+        }
+        
+        // 检查玩家和敌人是否碰撞武器道具
+        // console.log('[WeaponCheck] Total powerups:', this.weaponPowerUps.length);
+        for (let i = this.weaponPowerUps.length - 1; i >= 0; i--) {
+            const powerUp = this.weaponPowerUps[i];
+            if (!powerUp.isActive) continue;
             
             // 检查玩家是否碰撞武器道具
             const playerDistance = Phaser.Math.Distance.Between(
@@ -1265,13 +1350,14 @@ export class GameScene extends Phaser.Scene {
             );
             
             if (playerDistance < 60) {
-                this.collectWeaponPowerUp(index, 'player');
-                return;
+                this.collectWeaponPowerUp(i, 'player');
+                continue;
             }
             
             // 检查敌人是否碰撞武器道具
-            this.enemies.forEach((enemyData, enemyIndex) => {
-                if (!enemyData.character.active) return;
+            for (let enemyIndex = 0; enemyIndex < this.enemies.length; enemyIndex++) {
+                const enemyData = this.enemies[enemyIndex];
+                if (!enemyData.character.active) continue;
                 
                 const enemyDistance = Phaser.Math.Distance.Between(
                     powerUp.sprite.x, powerUp.sprite.y,
@@ -1279,18 +1365,20 @@ export class GameScene extends Phaser.Scene {
                 );
                 
                 if (enemyDistance < 60) {
-                    this.collectWeaponPowerUp(index, 'enemy', enemyIndex);
+                    this.collectWeaponPowerUp(i, 'enemy', enemyIndex);
+                    break;
                 }
-            });
-        });
+            }
+        }
     }
 
     private collectWeaponPowerUp(index: number, characterType: 'player' | 'enemy', enemyIndex?: number) {
+        if (index >= this.weaponPowerUps.length) return;
+        
         this.audioManager.playPowerUpSound();
         const powerUp = this.weaponPowerUps[index];
-        if (!powerUp.isActive) return;
         
-        console.log('[WeaponPickup] Collecting weapon:', powerUp.weaponType, 'bladeCount:', powerUp.bladeCount);
+        if (!powerUp || !powerUp.isActive) return;
         
         powerUp.isActive = false;
         powerUp.sprite.destroy();
@@ -1298,27 +1386,9 @@ export class GameScene extends Phaser.Scene {
         this.weaponPowerUps.splice(index, 1);
         
         if (characterType === 'player' && this.player) {
-            // 玩家拾取武器时，增加武器收集计数，用于升级
-            this.weaponCollectCount += powerUp.bladeCount;
-            if (this.playerBlades.length > 0 && this.playerBlades[0].getWeaponLevel() < 5) {
-                if (this.weaponCollectCount >= 2) {
-                    this.playerBlades[0].upgradeWeapon();
-                    this.weaponCollectCount = 0;
-                }
-            }
+            const profile = this.weaponProfiles.get(powerUp.weaponType);
+            if (!profile) return;
             
-            // 更新玩家的武器类型
-            this.playerWeaponType = powerUp.weaponType;
-            
-            // 计算当前武器数量和等级
-            let currentBladeCount = 0;
-            let currentWeaponLevel = 1;
-            if (this.playerBlades.length > 0) {
-                currentBladeCount = this.playerBlades[0].getBladeCount();
-                currentWeaponLevel = this.playerBlades[0].getWeaponLevel();
-            }
-            
-            // 增加对应的武器数量，保留当前武器等级（只保留不降低）
             const maxBladeCountMap: Record<WeaponType, number> = {
                 [WeaponType.DAGGER]: 12,
                 [WeaponType.SWORD]: 8,
@@ -1327,30 +1397,22 @@ export class GameScene extends Phaser.Scene {
                 [WeaponType.HAMMER]: 4
             };
             const maxBladeCount = maxBladeCountMap[powerUp.weaponType];
+            
+            profile.collectCount += powerUp.bladeCount;
+            if (profile.weaponLevel < 5 && profile.collectCount >= 2) {
+                profile.weaponLevel++;
+                profile.collectCount = 0;
+                profile.bladeArray.setWeaponLevel(profile.weaponLevel);
+            }
+            
+            const currentBladeCount = profile.bladeArray.getBladeCount();
             const newBladeCount = Math.min(currentBladeCount + powerUp.bladeCount, maxBladeCount);
-            const newWeaponLevel = Math.max(currentWeaponLevel, powerUp.weaponLevel);
+            if (newBladeCount > currentBladeCount) {
+                profile.bladeArray.setBladeCount(newBladeCount);
+            }
             
-            // 创建新的武器数组，使用当前等级
-            this.playerBlades.forEach(bladeArray => bladeArray.destroy());
-            this.playerBlades = [];
+            this.switchWeaponType(powerUp.weaponType);
             
-            const bladeArray = new BladeArray(
-                this,
-                this.player.x,
-                this.player.y,
-                {
-                    bladeCount: newBladeCount,
-                    radius: 100,
-                    rotationSpeed: 3.0,
-                    clockwise: true,
-                    weaponType: powerUp.weaponType,
-                    weaponLevel: newWeaponLevel
-                }
-            );
-            
-            this.playerBlades.push(bladeArray);
-            
-            // 设置玩家颜色为武器等级对应的颜色
             const levelTints = [
                 0xffffff, // Level 1 - White
                 0xffd700, // Level 2 - Gold
@@ -1358,7 +1420,7 @@ export class GameScene extends Phaser.Scene {
                 0x0000ff, // Level 4 - Blue
                 0xff00ff  // Level 5 - Purple
             ];
-            const tint = levelTints[Math.min(newWeaponLevel - 1, levelTints.length - 1)];
+            const tint = levelTints[Math.min(profile.weaponLevel - 1, levelTints.length - 1)];
             this.player.setTint(tint);
             this.time.delayedCall(300, () => {
                 if (this.player) this.player.clearTint();
@@ -1407,13 +1469,6 @@ export class GameScene extends Phaser.Scene {
                 enemyData.blades.push(bladeArray);
             }
         }
-        
-        // 延迟生成新的武器道具
-        this.time.delayedCall(5000, () => {
-            if (!this.isGameOver && this.weaponPowerUps.length < this.maxPowerUps) {
-                this.spawnWeaponPowerUp();
-            }
-        });
     }
 
     private createHealthPotions() {

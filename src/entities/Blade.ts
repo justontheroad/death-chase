@@ -66,10 +66,10 @@ export class BladeArray extends Phaser.GameObjects.Container {
     private calculateWeaponStats(): WeaponStats {
         const baseStats: Record<WeaponType, WeaponStats> = {
             [WeaponType.SWORD]: { damage: 10, range: 1.0, speed: 1.0, health: 100, maxBladeCount: 8 },
-            [WeaponType.AXE]: { damage: 15, range: 0.8, speed: 0.7, health: 120, maxBladeCount: 5 },
-            [WeaponType.SPEAR]: { damage: 8, range: 1.3, speed: 0.9, health: 80, maxBladeCount: 6 },
-            [WeaponType.HAMMER]: { damage: 20, range: 0.6, speed: 0.5, health: 150, maxBladeCount: 4 },
-            [WeaponType.DAGGER]: { damage: 6, range: 0.9, speed: 1.3, health: 60, maxBladeCount: 12 }
+            [WeaponType.AXE]: { damage: 14, range: 1.0, speed: 0.7, health: 120, maxBladeCount: 5 },
+            [WeaponType.SPEAR]: { damage: 12, range: 1.0, speed: 0.9, health: 80, maxBladeCount: 6 },
+            [WeaponType.HAMMER]: { damage: 18, range: 1.0, speed: 0.5, health: 150, maxBladeCount: 4 },
+            [WeaponType.DAGGER]: { damage: 6, range: 1.0, speed: 1.3, health: 60, maxBladeCount: 12 }
         };
 
         const base = baseStats[this.weaponType];
@@ -99,6 +99,62 @@ export class BladeArray extends Phaser.GameObjects.Container {
         this.weaponType = type;
         this.weaponStats = this.calculateWeaponStats();
         this.updateBladeAppearance();
+    }
+    
+    public setWeaponLevel(level: number) {
+        this.weaponLevel = level;
+        this.weaponStats = this.calculateWeaponStats();
+        this.updateBladeAppearance();
+    }
+    
+    public setBladeCount(count: number) {
+        if (count > this.bladeCount) {
+            const oldBladeCount = this.bladeCount;
+            this.bladeCount = count;
+            
+            const weaponTextureMap: Record<WeaponType, string> = {
+                [WeaponType.SWORD]: 'weapon_sword',
+                [WeaponType.AXE]: 'weapon_axe',
+                [WeaponType.SPEAR]: 'weapon_spear',
+                [WeaponType.HAMMER]: 'weapon_hammer',
+                [WeaponType.DAGGER]: 'weapon_dagger'
+            };
+            
+            const weaponTexture = weaponTextureMap[this.weaponType] || 'blade';
+            
+            for (let i = oldBladeCount; i < this.bladeCount; i++) {
+                const angle = (i / this.bladeCount) * Math.PI * 2;
+                const bladeX = Math.cos(angle) * this.radius * this.weaponStats.range;
+                const bladeY = Math.sin(angle) * this.radius * this.weaponStats.range;
+                
+                const blade = this.scene.add.sprite(bladeX, bladeY, weaponTexture);
+                blade.setOrigin(0.5, 0.5);
+                
+                const tint = this.getWeaponTint();
+                blade.setTint(tint);
+                
+                const scale = this.getWeaponScale();
+                blade.setScale(scale);
+                
+                this.blades.push({
+                    sprite: blade,
+                    health: this.weaponStats.health
+                });
+                this.add(blade);
+            }
+            
+            this.repositionBlades();
+        }
+    }
+    
+    private repositionBlades() {
+        this.blades.forEach((blade, index) => {
+            const angle = (index / this.bladeCount) * Math.PI * 2 + this.rotation;
+            const bladeX = Math.cos(angle) * this.radius * this.weaponStats.range;
+            const bladeY = Math.sin(angle) * this.radius * this.weaponStats.range;
+            blade.sprite.setPosition(bladeX, bladeY);
+            blade.sprite.rotation = angle;
+        });
     }
 
     private updateBladeAppearance() {

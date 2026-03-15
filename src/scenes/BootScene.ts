@@ -1,9 +1,15 @@
+import { MenuSettings } from './MenuScene';
+
 export class BootScene extends Phaser.Scene {
     private loadingBar!: Phaser.GameObjects.Graphics;
     private loadingText!: Phaser.GameObjects.Text;
 
     constructor() {
         super('BootScene');
+    }
+
+    init(data: MenuSettings) {
+        console.log('BootScene init with settings:', data);
     }
 
     preload() {
@@ -64,7 +70,7 @@ export class BootScene extends Phaser.Scene {
 
     create() {
         console.log('BootScene create - starting GameScene');
-        // Go to the main game scene
-        this.scene.start('GameScene');
+        const settings = this.sys.settings.data as MenuSettings;
+        this.scene.start('GameScene', settings);
     }
 }

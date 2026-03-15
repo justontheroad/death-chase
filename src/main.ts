@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
+import { MenuScene } from './scenes/MenuScene';
 import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
 
@@ -22,7 +23,7 @@ const config: Phaser.Types.Core.GameConfig = {
             gravity: { y: 0 }
         }
     },
-    scene: [BootScene, GameScene, UIScene],
+    scene: [MenuScene, BootScene, GameScene, UIScene],
     fps: {
         target: 60,
         forceSetTimeOut: true
