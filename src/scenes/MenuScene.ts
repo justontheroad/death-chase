@@ -1,20 +1,25 @@
 import Phaser from 'phaser';
 import { WeaponType } from '../entities/Blade';
 
+export type ControlMode = 'click' | 'button';
+
 export interface MenuSettings {
     selectedStage: number;
     selectedWeapon: WeaponType;
     musicEnabled: boolean;
+    controlMode: ControlMode;
 }
 
 export class MenuScene extends Phaser.Scene {
     private selectedStage: number = 1;
     private selectedWeapon: WeaponType = WeaponType.SWORD;
     private musicEnabled: boolean = true;
+    private controlMode: ControlMode = 'click';
     
     private stageText!: Phaser.GameObjects.Text;
     private weaponText!: Phaser.GameObjects.Text;
     private musicText!: Phaser.GameObjects.Text;
+    private controlModeText!: Phaser.GameObjects.Text;
     
     constructor() {
         super({ key: 'MenuScene' });
@@ -111,11 +116,37 @@ export class MenuScene extends Phaser.Scene {
             this.musicText.setColor(this.musicEnabled ? '#00ff00' : '#ff0000');
         });
         
-        const startBtn = this.createStartButton(centerX, centerY + 140, '开始游戏', () => {
+        const controlLabel = this.add.text(centerX - 150, centerY + 80, '操作:', {
+            fontSize: '24px',
+            color: '#ffffff'
+        }).setOrigin(0, 0.5);
+        
+        const controlNames: Record<ControlMode, string> = {
+            'click': '点击',
+            'button': '按键'
+        };
+        
+        this.controlModeText = this.add.text(centerX + 50, centerY + 80, controlNames[this.controlMode], {
+            fontSize: '24px',
+            color: '#00ff00'
+        }).setOrigin(0, 0.5);
+        
+        const controlLeftBtn = this.createButton(centerX - 80, centerY + 80, '<', () => {
+            this.controlMode = this.controlMode === 'click' ? 'button' : 'click';
+            this.controlModeText.setText(controlNames[this.controlMode]);
+        });
+        
+        const controlRightBtn = this.createButton(centerX + 150, centerY + 80, '>', () => {
+            this.controlMode = this.controlMode === 'click' ? 'button' : 'click';
+            this.controlModeText.setText(controlNames[this.controlMode]);
+        });
+        
+        const startBtn = this.createStartButton(centerX, centerY + 160, '开始游戏', () => {
             const settings: MenuSettings = {
                 selectedStage: this.selectedStage,
                 selectedWeapon: this.selectedWeapon,
-                musicEnabled: this.musicEnabled
+                musicEnabled: this.musicEnabled,
+                controlMode: this.controlMode
             };
             this.scene.start('BootScene', settings);
         });

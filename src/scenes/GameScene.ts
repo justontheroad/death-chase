@@ -51,6 +51,7 @@ interface MenuSettings {
     selectedStage: number;
     selectedWeapon: WeaponType;
     musicEnabled: boolean;
+    controlMode?: 'click' | 'button';
 }
 
 export class GameScene extends Phaser.Scene {
@@ -60,6 +61,7 @@ export class GameScene extends Phaser.Scene {
     private initialWeaponType: WeaponType = WeaponType.SWORD;
     private initialStage: number = 1;
     private musicEnabled: boolean = true;
+    private controlMode: 'click' | 'button' = 'click';
     public playerLevel: number = 1;
     public playerExp: number = 0;
     public weaponCollectCount: number = 0;
@@ -102,6 +104,7 @@ export class GameScene extends Phaser.Scene {
     // Movement
     private playerTargetX: number = 400;
     private playerTargetY: number = 300;
+    private virtualKeys: { up: boolean; down: boolean; left: boolean; right: boolean } = { up: false, down: false, left: false, right: false };
     private isMoving: boolean = false;
     private playerKnockbackTimer: number = 0;
     private playerKnockbackDirX: number = 0;
@@ -122,10 +125,12 @@ export class GameScene extends Phaser.Scene {
             this.initialWeaponType = data.selectedWeapon || WeaponType.SWORD;
             this.initialStage = data.selectedStage || 1;
             this.musicEnabled = data.musicEnabled !== false;
+            this.controlMode = data.controlMode || 'click';
         }
     }
     
     create() {
+        console.log('GameScene create - controlMode:', this.controlMode);
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
         this.background = this.add.image(this.worldWidth / 2, this.worldHeight / 2, 'bamboo_forest');
@@ -138,7 +143,7 @@ export class GameScene extends Phaser.Scene {
             this.audioManager.startBackgroundMusic();
         }
         this.setupCamera();
-        this.createUI();
+        this.createUI(this.controlMode);
         this.createWeaponPowerUps();
         this.createHealthPotions();
 
@@ -146,7 +151,9 @@ export class GameScene extends Phaser.Scene {
             this.initializeEnemies();
         });
 
-        this.input.on('pointerdown', this.handlePointerDown, this);
+        if (this.controlMode === 'click') {
+            this.input.on('pointerdown', this.handlePointerDown, this);
+        }
 
         this.combatTimerEvent = this.time.addEvent({
             delay: 100,
@@ -158,6 +165,17 @@ export class GameScene extends Phaser.Scene {
 
     update(time: number, delta: number) {
         if (this.isGameOver || !this.player) return;
+        
+        if (this.virtualKeys.up || this.virtualKeys.down || this.virtualKeys.left || this.virtualKeys.right) {
+            const speed = 5;
+            if (this.virtualKeys.up) this.playerTargetY -= speed;
+            if (this.virtualKeys.down) this.playerTargetY += speed;
+            if (this.virtualKeys.left) this.playerTargetX -= speed;
+            if (this.virtualKeys.right) this.playerTargetX += speed;
+            this.playerTargetX = Math.max(50, Math.min(this.worldWidth - 50, this.playerTargetX));
+            this.playerTargetY = Math.max(50, Math.min(this.worldHeight - 50, this.playerTargetY));
+            this.isMoving = true;
+        }
 
         if (this.isMoving) {
             this.updatePlayerMovement(delta);
@@ -282,7 +300,7 @@ export class GameScene extends Phaser.Scene {
 
     private healthText!: Phaser.GameObjects.Text;
 
-    private createUI() {
+    private createUI(controlMode: 'click' | 'button' = 'click') {
         this.levelText = this.add.text(20, 20, `等级: ${this.playerLevel}`, {
             fontSize: '28px',
             color: '#ffffff',
@@ -325,13 +343,14 @@ export class GameScene extends Phaser.Scene {
         this.bossHealthText.setVisible(false);
 
         this.victoryText = this.add.text(400, 300, '', {
-            fontSize: '48px',
+            fontSize: '64px',
             color: '#00ff00',
             stroke: '#000000',
             strokeThickness: 6
         });
         this.victoryText.setOrigin(0.5);
         this.victoryText.setScrollFactor(0);
+        this.victoryText.setDepth(100);
         this.victoryText.setVisible(false);
 
         this.weaponInfoText = this.add.text(380, 90, '', {
@@ -350,6 +369,64 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 2
         });
         this.memoryText.setScrollFactor(0);
+        
+        if (controlMode === 'button') {
+            this.createVirtualJoystick();
+        }
+    }
+    
+    private createVirtualJoystick() {
+        const joystickSize = 50;
+        const offsetX = 80;
+        const offsetY = 600 - 120;
+        
+        const upBtnBg = this.add.rectangle(offsetX, offsetY - joystickSize * 2, joystickSize, joystickSize, 0x666666).setDepth(49);
+        const upBtn = this.add.text(offsetX, offsetY - joystickSize * 2, '▲', {
+            fontSize: '24px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        upBtn.setScrollFactor(0);
+        upBtn.setDepth(50);
+        upBtn.setInteractive({ useHandCursor: true });
+        upBtn.on('pointerdown', () => { this.virtualKeys.up = true; });
+        upBtn.on('pointerup', () => { this.virtualKeys.up = false; });
+        upBtn.on('pointerout', () => { this.virtualKeys.up = false; });
+        
+        const downBtnBg = this.add.rectangle(offsetX, offsetY, joystickSize, joystickSize, 0x666666).setDepth(49);
+        const downBtn = this.add.text(offsetX, offsetY, '▼', {
+            fontSize: '24px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        downBtn.setScrollFactor(0);
+        downBtn.setDepth(50);
+        downBtn.setInteractive({ useHandCursor: true });
+        downBtn.on('pointerdown', () => { this.virtualKeys.down = true; });
+        downBtn.on('pointerup', () => { this.virtualKeys.down = false; });
+        downBtn.on('pointerout', () => { this.virtualKeys.down = false; });
+        
+        const leftBtnBg = this.add.rectangle(offsetX - joystickSize, offsetY - joystickSize, joystickSize, joystickSize, 0x666666).setDepth(49);
+        const leftBtn = this.add.text(offsetX - joystickSize, offsetY - joystickSize, '◀', {
+            fontSize: '24px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        leftBtn.setScrollFactor(0);
+        leftBtn.setDepth(50);
+        leftBtn.setInteractive({ useHandCursor: true });
+        leftBtn.on('pointerdown', () => { this.virtualKeys.left = true; });
+        leftBtn.on('pointerup', () => { this.virtualKeys.left = false; });
+        leftBtn.on('pointerout', () => { this.virtualKeys.left = false; });
+        
+        const rightBtnBg = this.add.rectangle(offsetX + joystickSize, offsetY - joystickSize, joystickSize, joystickSize, 0x666666).setDepth(49);
+        const rightBtn = this.add.text(offsetX + joystickSize, offsetY - joystickSize, '▶', {
+            fontSize: '24px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        rightBtn.setScrollFactor(0);
+        rightBtn.setDepth(50);
+        rightBtn.setInteractive({ useHandCursor: true });
+        rightBtn.on('pointerdown', () => { this.virtualKeys.right = true; });
+        rightBtn.on('pointerup', () => { this.virtualKeys.right = false; });
+        rightBtn.on('pointerout', () => { this.virtualKeys.right = false; });
     }
 
     private initializeEnemies() {
@@ -973,7 +1050,7 @@ export class GameScene extends Phaser.Scene {
         this.isMoving = false;
         
         this.time.delayedCall(2000, () => {
-            this.scene.start('MenuScene');
+            this.nextStage();
         });
     }
 

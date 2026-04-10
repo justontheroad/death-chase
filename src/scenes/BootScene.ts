@@ -69,7 +69,6 @@ export class BootScene extends Phaser.Scene {
     }
 
     create() {
-        console.log('BootScene create - starting GameScene');
         const settings = this.sys.settings.data as MenuSettings;
         this.scene.start('GameScene', settings);
     }
